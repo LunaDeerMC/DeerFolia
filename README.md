@@ -131,7 +131,7 @@ async-pathfinding:
    - 如果你不知道要修改的补丁 hash 值，你可以使用 `git log` 查看；
    - 如果你只知道补丁的名称，你可以使用 `git log --grep=<补丁名称>` 查看；
 3. 执行 `git rebase -i --autosquash base` ，这将会自动将你的修改移动到对应的补丁下方；
-4. 在跟项目目录执行 `./gradlew rebuildPatches` 应用补丁更新；
+4. 在跟项目目录执行 `./gradlew rebuildAllServerPatches` 应用补丁更新；
 
 ## 更新上游 Folia 修改
 
@@ -143,4 +143,4 @@ async-pathfinding:
    - 完成后删除 `.rej` 文件，然后执行 `git add .`；
 4. 然后运行 `git am --resolved` 继续应用补丁；
 5. 如果存在新的冲突，重复步骤 3 和 4；
-6. 全部补丁应用完成后，更新补丁：`./gradlew rebuildServerPatches`。
+6. 全部补丁应用完成后，更新补丁：`./gradlew rebuildAllServerPatches`。

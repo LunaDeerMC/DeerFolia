@@ -5,10 +5,10 @@ Subject: [PATCH] Dynamic Activation Brain
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index de88c3d9d3523a7bd3f3dcbfc62d72658192521d..354c4758d8d0fbc0fd79fa346795d4c9473481d1 100644
+index 610abaee663b7573a56c0a0a6dd4ab9c0224b173..cebf0a06f4be71515106b384e9b38c4f4a786e13 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -411,4 +411,13 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -416,4 +416,13 @@ public class GlobalConfiguration extends ConfigurationPart {
          }
      }
      // Folia end - threaded regions

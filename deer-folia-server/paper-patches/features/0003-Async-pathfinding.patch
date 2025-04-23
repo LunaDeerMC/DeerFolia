@@ -5,10 +5,10 @@ Subject: [PATCH] Async pathfinding
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 354c4758d8d0fbc0fd79fa346795d4c9473481d1..c329ce0558ced13eeb39e4b57028051dee4f7cdb 100644
+index cebf0a06f4be71515106b384e9b38c4f4a786e13..9dfba263e3bd0eb9bdd726971f134554d9e9e0ee 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -420,4 +420,22 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -425,4 +425,22 @@ public class GlobalConfiguration extends ConfigurationPart {
          public int activationDistanceMod = 8;
      }
      // DeerFolia end - puffish DAB
