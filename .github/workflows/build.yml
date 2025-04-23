@@ -2,16 +2,12 @@ name: Java CI-CD with Gradle
 
 on:
   push:
-    paths:
-      - 'patches/**'
-      - 'gradle.properties'
-      - 'gradle/wrapper/gradle-wrapper.properties'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - '.github/**'
+    tags:
+      - '*'
 
 jobs:
   build:
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - name: "Pull & Checkout"
