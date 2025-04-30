@@ -1,4 +1,4 @@
-package cn.lunadeer.async.path;
+package cn.lunadeer.deerfolia.async.path;
 
 import net.minecraft.world.level.pathfinder.NodeEvaluator;
 import net.minecraft.world.level.pathfinder.SwimNodeEvaluator;

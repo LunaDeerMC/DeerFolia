@@ -1,4 +1,4 @@
-package cn.lunadeer.async.path;
+package cn.lunadeer.deerfolia.async.path;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.papermc.paper.configuration.GlobalConfiguration;

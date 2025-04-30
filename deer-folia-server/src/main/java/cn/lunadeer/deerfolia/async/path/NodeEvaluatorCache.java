@@ -1,4 +1,4 @@
-package cn.lunadeer.async.path;
+package cn.lunadeer.deerfolia.async.path;
 
 import ca.spottedleaf.concurrentutil.collection.MultiThreadedQueue;
 import net.minecraft.world.level.pathfinder.NodeEvaluator;
