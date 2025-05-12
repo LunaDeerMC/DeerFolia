@@ -14,9 +14,10 @@ DeerFolia 是一个基于 [Folia](https://papermc.io/software/folia) 的 Minecra
 
 ## 此分支特性
 
-- 还原了 [刷沙机制](patches/server/0003-Allow-sand-duplication.patch)（虽然 paper 已支持刷沙，但由于 folia 的特性，paper 的刷沙开关在 folia 是无效的）；
-- [Dynamic Activation of Brain (Pufferfish)](patches/server/0005-Dynamic-Activation-Brain.patch)；
-- [Async Path Finding (Pufferfish)](patches/server/0006-Async-Pathfinding.patch)；
+- 还原了 [刷沙机制](deer-folia-server/minecraft-patches/features/0003-Allow-sand-duplication.patch)（虽然 paper 已支持刷沙，但由于 folia 的特性，paper 的刷沙开关在 folia 是无效的）；
+- [Dynamic Activation of Brain (Pufferfish)](deer-folia-server/minecraft-patches/features/0004-Dynamic-Activation-Brain.patch)；
+- [Async Path Finding (Pufferfish)](deer-folia-server/minecraft-patches/features/0005-Async-pathfinding.patch)；
+- [Kaiiju Entity Throttling (Kaiiju)](deer-folia-server/minecraft-patches/features/0007-Kaiiju-Entity-Throttling.patch)；
 - ~~还原了 [虚空交易](https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/src/branch/master/patches/server/0002-Allow-void-trading.patch)~~（疑似已被 mojang 官方修复）；
 - ~~还原了 [刷线机制](https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/src/branch/master/patches/server/0004-Allow-tripwire-duplication.patch)~~（mojang已在1.21.3修复）；
 
@@ -27,14 +28,14 @@ DeerFolia 是一个基于 [Folia](https://papermc.io/software/folia) 的 Minecra
 通过动态调整实体的激活频率，减少了不必要的计算，提升了服务器的性能。
 
 ```yaml
-# config/paper-global.yml
+# config/deer-folia.yml
 dynamic-activation-brain:
-   activation-distance-mod: 8
-   dear-enabled: true
-   maximum-activation-prio: 20
+   enabled: true
    start-distance: 12
+   activation-distance-mod: 8
+   maximum-activation-prio: 20
 ```
-- `dear-enabled`：是否启用；
+- `enabled`：是否启用；
 - `activation-distance-mod`：递减倍数；
 - `maximum-activation-prio`：最大停顿（如果设置为20则表示无论多远，每20tick都至少计算一次）；
 - `start-distance`：开始递减的距离；
@@ -47,11 +48,11 @@ dynamic-activation-brain:
 引入异步路径查找和相关的机制，提升了路径查找的性能和响应速度。
 
 ```yaml
-# config/paper-global.yml
+# config/deer-folia.yml
 async-pathfinding:
-   async-pathfinding-keepalive: 60
-   async-pathfinding-max-threads: 20
    enabled: true
+   async-pathfinding-keep-alive: 60
+   async-pathfinding-max-threads: 20
 ```
 
 - `enabled`：是否启用；
@@ -60,6 +61,24 @@ async-pathfinding:
 
 > 线程池本质上为虚拟线程，与cpu物理核心无关。过少的线程池大小可能会对性能提升不明显，过多通常不会有明显的负面影响但是可能会影响java的GC。
 > 推荐 `async-pathfinding-max-threads` 为 10-20 之间。
+
+### Kaiiju Entity Throttling
+
+引入了 Kaiiju 的实体节流机制，提升了服务器的性能。
+
+```yaml
+# config/deer-folia.yml
+kaiiju-entity-throttling: true
+
+# config/kaiiju-entity-throttling.yml
+ZombifiedPiglin:
+   limit: 1000
+   removal: 3000
+```
+
+- `kaiiju-entity-throttling`：是否启用 Kaiiju 实体节流机制；
+- `limit`：实体数量限制，超过该数量后实体每 3 tick 才会被更新一次；
+- `removal`：实体移除限制，超过该数量后实体最先生成的实体会被逐步移除；
 
 ## 如何自行编译
 
@@ -78,11 +97,10 @@ async-pathfinding:
 
 ### 新增文件
 
-1. 在 `paper-server` 中新增相关文件；
-2. 不提交变更，直接运行 `./gradlew fixupPaperServerFilePatches`；
-3. 随后运行 `./gradlew rebuildPaperServerFilePatches` 即可在 `deer-folia-server/paper-patches/files` 下生成文件级补丁；
+1. 在 `deer-folia-server/src/main/java` 中新增相关文件；
+2. 直接提交 `git add .` 并提交 `git commit` ，填写补丁信息即可；
 
-> 通过将与上游源码无关的新增文件独立为文件级 patch，减少对上游修改 patch 文件的长度使得项目更易于维护。
+> 通过将与上游源码无关的新增文件独立开，减少对上游修改 patch 文件的长度使得项目更易于维护。
 
 ## 修改已有补丁
 
