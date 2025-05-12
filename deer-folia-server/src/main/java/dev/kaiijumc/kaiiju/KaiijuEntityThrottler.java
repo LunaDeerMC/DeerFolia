@@ -53,11 +53,10 @@ public class KaiijuEntityThrottler {
                 return retVal;
             }
             retVal.skip = true;
-            return retVal;
         } else {
             retVal.skip = false;
-            return retVal;
         }
+        return retVal;
     }
 
     public void tickLimiterFinish(RegionizedWorldData regionizedWorldData) {

@@ -5,7 +5,7 @@ Subject: [PATCH] Async pathfinding
 
 
 diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
-index b9174ae7e3a3e2de2d570b95ab5012ac3c3a2eda..7864234437529bd5defd41b9b2461b607353955b 100644
+index b9174ae7e3a3e2de2d570b95ab5012ac3c3a2eda..c7e96fa00eff4db4cd373382d7b0cf5d29bdca2e 100644
 --- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
 +++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
 @@ -94,6 +94,38 @@ public class AcquirePoi {
@@ -57,7 +57,7 @@ index b9174ae7e3a3e2de2d570b95ab5012ac3c3a2eda..7864234437529bd5defd41b9b2461b60
                          }
                      }
 diff --git a/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java b/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java
-index 621ba76784f2b92790eca62be4d0688834335ab6..b2a8acef129e1463f0d7bb0199efdf30e469736b 100644
+index 621ba76784f2b92790eca62be4d0688834335ab6..7c764a50d2f2691b528f48d6cbbe2c4636f87816 100644
 --- a/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java
 +++ b/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java
 @@ -21,6 +21,7 @@ public class MoveToTargetSink extends Behavior<Mob> {
@@ -82,7 +82,7 @@ index 621ba76784f2b92790eca62be4d0688834335ab6..b2a8acef129e1463f0d7bb0199efdf30
                  brain.eraseMemory(MemoryModuleType.WALK_TARGET);
                  if (flag) {
 @@ -69,6 +72,7 @@ public class MoveToTargetSink extends Behavior<Mob> {
-
+ 
      @Override
      protected boolean canStillUse(ServerLevel level, Mob entity, long gameTime) {
 +        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.asyncPathfinding.enabled && !this.finishedProcessing) return true; // DeerFolia - petal - wait for processing
@@ -90,7 +90,7 @@ index 621ba76784f2b92790eca62be4d0688834335ab6..b2a8acef129e1463f0d7bb0199efdf30
              Optional<WalkTarget> memory = entity.getBrain().getMemory(MemoryModuleType.WALK_TARGET);
              boolean flag = memory.map(MoveToTargetSink::isWalkTargetSpectator).orElse(false);
 @@ -95,12 +99,68 @@ public class MoveToTargetSink extends Behavior<Mob> {
-
+ 
      @Override
      protected void start(ServerLevel level, Mob entity, long gameTime) {
 +        // DeerFolia start - petal - start processing
@@ -107,7 +107,7 @@ index 621ba76784f2b92790eca62be4d0688834335ab6..b2a8acef129e1463f0d7bb0199efdf30
          entity.getBrain().setMemory(MemoryModuleType.PATH, this.path);
          entity.getNavigation().moveTo(this.path, (double)this.speedModifier);
      }
-
+ 
      @Override
      protected void tick(ServerLevel level, Mob owner, long gameTime) {
 +        // DeerFolia start - petal - Async path processing
@@ -179,11 +179,11 @@ index 621ba76784f2b92790eca62be4d0688834335ab6..b2a8acef129e1463f0d7bb0199efdf30
 +        return entity.getNavigation().createPath(blockPos, 0);
      }
 +    // DeerFolia end
-
+ 
      private boolean tryComputePath(Mob mob, WalkTarget target, long time) {
          BlockPos blockPos = target.getTarget().currentBlockPosition();
 diff --git a/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java b/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
-index 4f9f3367b1ca3903df03a80fa2b01a3d24e6e77d..ab909880245f35b2e39c98b58f76a9a96cfe5b50 100644
+index 4f9f3367b1ca3903df03a80fa2b01a3d24e6e77d..96554237efc019109ad29f7cb2dce6bc09e50c0f 100644
 --- a/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
 +++ b/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
 @@ -60,6 +60,26 @@ public class SetClosestHomeAsWalkTarget {
@@ -218,7 +218,7 @@ index 4f9f3367b1ca3903df03a80fa2b01a3d24e6e77d..ab909880245f35b2e39c98b58f76a9a9
                                      map.long2LongEntrySet().removeIf(entry -> entry.getLongValue() < mutableLong.getValue());
                                  }
 +                                } // DeerFolia - async path processing
-
+ 
                                  return true;
                              } else {
 diff --git a/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java b/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java
@@ -235,13 +235,13 @@ index d8f532c5e68ff4dff933556c4f981e9474c044e6..f7791add826fbe22e498d2b919d2247b
                      Node node = path.getNode(i);
                      this.doorPos = new BlockPos(node.x, node.y + 1, node.z);
 diff --git a/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java b/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java
-index 66a02fe7594522ef391d67e09856bf3f70fe597d..533a121fc872669c155c778b5761f3141489e9d7 100644
+index 66a02fe7594522ef391d67e09856bf3f70fe597d..8b922f34de0b8e173f0f0dcfc16da8647d31face 100644
 --- a/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java
 @@ -12,9 +12,25 @@ public class AmphibiousPathNavigation extends PathNavigation {
          super(mob, level);
      }
-
+ 
 +    // DeerFolia start - petal - async path processing
 +    private static final cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator = (cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorFeatures nodeEvaluatorFeatures) -> {
 +        AmphibiousNodeEvaluator nodeEvaluator = new AmphibiousNodeEvaluator(false);
@@ -263,15 +263,15 @@ index 66a02fe7594522ef391d67e09856bf3f70fe597d..533a121fc872669c155c778b5761f314
 +        // DeerFolia end
          return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
      }
-
+ 
 diff --git a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
-index 71ea68b56b3069bdf8e47931156b6ef49ea8ce5d..19b88f3d85b09422c210e9629651bd61e19806fe 100644
+index 71ea68b56b3069bdf8e47931156b6ef49ea8ce5d..35fa2796d2a1534e41fc336efde8e06cece5025c 100644
 --- a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
 @@ -16,9 +16,25 @@ public class FlyingPathNavigation extends PathNavigation {
          super(mob, level);
      }
-
+ 
 +    // DeerFolia start - petal - async path processing
 +    private static final cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator = (cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorFeatures nodeEvaluatorFeatures) -> {
 +        FlyNodeEvaluator nodeEvaluator = new FlyNodeEvaluator();
@@ -293,23 +293,23 @@ index 71ea68b56b3069bdf8e47931156b6ef49ea8ce5d..19b88f3d85b09422c210e9629651bd61
 +        // DeerFolia end
          return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
      }
-
+ 
 @@ -48,6 +64,7 @@ public class FlyingPathNavigation extends PathNavigation {
          if (this.hasDelayedRecomputation) {
              this.recomputePath();
          }
 +        if (this.path != null && !this.path.isProcessed()) return; // DeerFolia - petal - async path processing
-
+ 
          if (!this.isDone()) {
              if (this.canUpdatePath()) {
 diff --git a/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java b/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
-index a24e964aff5623e3d7f2b79c87b6067f565458c2..0f043a61b6054df13d894ddbf05828c212563957 100644
+index a24e964aff5623e3d7f2b79c87b6067f565458c2..39c773e055d258c0cb77a3a4910ebb52e91af170 100644
 --- a/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 @@ -24,9 +24,25 @@ public class GroundPathNavigation extends PathNavigation {
          super(mob, level);
      }
-
+ 
 +    // DeerFolia start - petal - async path processing
 +    protected static final cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator = (cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorFeatures nodeEvaluatorFeatures) -> {
 +        WalkNodeEvaluator nodeEvaluator = new WalkNodeEvaluator();
@@ -331,9 +331,9 @@ index a24e964aff5623e3d7f2b79c87b6067f565458c2..0f043a61b6054df13d894ddbf05828c2
 +        // DeerFolia end
          return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
      }
-
+ 
 diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
-index 386580035e6789d6e668b924513ddfc81947a9b3..dd9597f306e45a679d312fdc36d73c96cf7fed0a 100644
+index 386580035e6789d6e668b924513ddfc81947a9b3..c73dc89fcd9aabbd7f49c1eb40f7d7f04a9f4307 100644
 --- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 @@ -169,6 +169,10 @@ public abstract class PathNavigation {
@@ -374,7 +374,7 @@ index 386580035e6789d6e668b924513ddfc81947a9b3..dd9597f306e45a679d312fdc36d73c96
                  this.resetStuckTimeout();
              }
 +            } // DeerFolia - async path processing
-
+ 
              return path;
          }
 @@ -251,8 +273,8 @@ public abstract class PathNavigation {
@@ -393,12 +393,12 @@ index 386580035e6789d6e668b924513ddfc81947a9b3..dd9597f306e45a679d312fdc36d73c96
              this.recomputePath();
          }
 +        if (this.path != null && !this.path.isProcessed()) return; // DeerFolia - petal - skip pathfinding if we're still processing
-
+ 
          if (!this.isDone()) {
              if (this.canUpdatePath()) {
 @@ -304,6 +327,7 @@ public abstract class PathNavigation {
      }
-
+ 
      protected void followThePath() {
 +        if (!this.path.isProcessed()) return; // DeerFolia - petal - skip if not processed
          Vec3 tempMobPos = this.getTempMobPos();
@@ -414,13 +414,13 @@ index 386580035e6789d6e668b924513ddfc81947a9b3..dd9597f306e45a679d312fdc36d73c96
              Vec3 vec3 = new Vec3((endNode.x + this.mob.getX()) / 2.0, (endNode.y + this.mob.getY()) / 2.0, (endNode.z + this.mob.getZ()) / 2.0);
              return pos.closerToCenterThan(vec3, this.path.getNodeCount() - this.path.getNextNodeIndex());
 diff --git a/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java b/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java
-index 2979846853898d78a2df19df2287da16dbe4ae71..d62f53166a664ad7a8731e02dbf14256a314d62e 100644
+index 2979846853898d78a2df19df2287da16dbe4ae71..3b0e70bf65c2b9e97de85c97932c3ebc71aad325 100644
 --- a/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java
 @@ -15,11 +15,27 @@ public class WaterBoundPathNavigation extends PathNavigation {
          super(mob, level);
      }
-
+ 
 +    // DeerFolia start - petal - async path processing
 +    private static final cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator = (cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorFeatures nodeEvaluatorFeatures) -> {
 +        SwimNodeEvaluator nodeEvaluator = new SwimNodeEvaluator(nodeEvaluatorFeatures.allowBreaching());
@@ -444,9 +444,9 @@ index 2979846853898d78a2df19df2287da16dbe4ae71..d62f53166a664ad7a8731e02dbf14256
 +        // DeerFolia end
          return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
      }
-
+ 
 diff --git a/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java b/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
-index 066faa704338c573472381e1ebd063e0d52aaaa4..e83f907f8175953ae64420f574748692521d0a2c 100644
+index 066faa704338c573472381e1ebd063e0d52aaaa4..e87ae748adcdc6e26049cf5a8baff6b26b615696 100644
 --- a/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
 +++ b/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
 @@ -57,6 +57,25 @@ public class NearestBedSensor extends Sensor<Mob> {
@@ -498,7 +498,7 @@ index c10810bf00d75f459c3c6a9415c1e09f0519d50e..c523ffb5cf4bd7e4d3a9ab5e0e34d01e
 @@ -44,6 +45,12 @@ public class PoiManager extends SectionStorage<PoiSection, PoiSection.Packed> im
      private final PoiManager.DistanceTracker distanceTracker;
      private final LongSet loadedChunks = new LongOpenHashSet();
-
+ 
 +    // DeerFolia - Async path processing
 +    private final java.util.concurrent.locks.ReadWriteLock rwlock = new java.util.concurrent.locks.ReentrantReadWriteLock();
 +    private final java.util.concurrent.locks.Lock rlock = rwlock.readLock();
@@ -507,11 +507,11 @@ index c10810bf00d75f459c3c6a9415c1e09f0519d50e..c523ffb5cf4bd7e4d3a9ab5e0e34d01e
 +
      // Paper start - rewrite chunk system
      private final net.minecraft.server.level.ServerLevel world;
-
+ 
 @@ -73,11 +80,25 @@ public class PoiManager extends SectionStorage<PoiSection, PoiSection.Packed> im
          final int chunkY = ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkSectionY(pos);
          final int chunkZ = ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkSectionZ(pos);
-
+ 
 -        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.world, chunkX, chunkZ, "Accessing poi chunk off-main");
 -
 -        final ca.spottedleaf.moonrise.patches.chunk_system.level.poi.PoiChunk ret = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager.getPoiChunkIfLoaded(chunkX, chunkZ, true);
@@ -520,7 +520,7 @@ index c10810bf00d75f459c3c6a9415c1e09f0519d50e..c523ffb5cf4bd7e4d3a9ab5e0e34d01e
 +            if (rlock.tryLock(100, TimeUnit.MILLISECONDS)) {
 +                try {
 +                    final ca.spottedleaf.moonrise.patches.chunk_system.level.poi.PoiChunk ret = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager.getPoiChunkIfLoaded(chunkX, chunkZ, true);
-
+ 
 -        return ret == null ? Optional.empty() : ret.getSectionForVanilla(chunkY);
 +                    return ret == null ? Optional.empty() : ret.getSectionForVanilla(chunkY);
 +                } finally {
@@ -536,7 +536,7 @@ index c10810bf00d75f459c3c6a9415c1e09f0519d50e..c523ffb5cf4bd7e4d3a9ab5e0e34d01e
 +        }
 +        // DeerFolia - Async path processing
      }
-
+ 
      @Override
 @@ -292,15 +313,36 @@ public class PoiManager extends SectionStorage<PoiSection, PoiSection.Packed> im
          Predicate<Holder<PoiType>> typePredicate, BiPredicate<Holder<PoiType>, BlockPos> combinedTypePosPredicate, BlockPos pos, int distance
@@ -582,12 +582,12 @@ index c10810bf00d75f459c3c6a9415c1e09f0519d50e..c523ffb5cf4bd7e4d3a9ab5e0e34d01e
 +        return Optional.empty();
 +        // DeerFolia - Async path processing
      }
-
+ 
      public Optional<BlockPos> getRandom(
 @@ -338,6 +380,12 @@ public class PoiManager extends SectionStorage<PoiSection, PoiSection.Packed> im
          return this.getOrLoad(SectionPos.asLong(pos)).map(poiSection -> poiSection.exists(pos, typePredicate)).orElse(false);
      }
-
+ 
 +    // DeerFolia - Async path processing
 +    public Optional<Holder<PoiType>> getTypeWithoutLoad(BlockPos pos) {
 +        return this.get(SectionPos.asLong(pos)).flatMap(poiSet -> poiSet.getType(pos));
@@ -620,13 +620,13 @@ index 15360f560d9b6a762ebd4284b7d0ca0a3e13794e..7fb1da9de38cc8e51c510858c9e65de2
          }
      }
 diff --git a/net/minecraft/world/entity/animal/frog/Frog.java b/net/minecraft/world/entity/animal/frog/Frog.java
-index 0b6301eeb802297f0136cef4b4806d98e5c4f1d2..4ff60dc6a8e37f288daf3b27a039ec2c518dff9a 100644
+index 97245ef88305c6cc07255e4c5ca7da02896d8429..281e209f31238ac9b890b47ff99934d5e80b12ce 100644
 --- a/net/minecraft/world/entity/animal/frog/Frog.java
 +++ b/net/minecraft/world/entity/animal/frog/Frog.java
 @@ -424,6 +424,17 @@ public class Frog extends Animal implements VariantHolder<Holder<FrogVariant>> {
              super(mob, level);
          }
-
+ 
 +        // DeerFolia start - petal - async path processing
 +        private static final cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator = (cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorFeatures nodeEvaluatorFeatures) -> {
 +            Frog.FrogNodeEvaluator nodeEvaluator = new Frog.FrogNodeEvaluator(true);
@@ -658,7 +658,7 @@ index c23c4e44ece85fb746a497cbb8a7cd14b2f9768a..72a239e3b1fd75933457aa6134b42c9c
 --- a/net/minecraft/world/entity/monster/Drowned.java
 +++ b/net/minecraft/world/entity/monster/Drowned.java
 @@ -239,7 +239,7 @@ public class Drowned extends Zombie implements RangedAttackMob {
-
+ 
      protected boolean closeToNextPos() {
          Path path = this.getNavigation().getPath();
 -        if (path != null) {
@@ -667,13 +667,13 @@ index c23c4e44ece85fb746a497cbb8a7cd14b2f9768a..72a239e3b1fd75933457aa6134b42c9c
              if (target != null) {
                  double d = this.distanceToSqr(target.getX(), target.getY(), target.getZ());
 diff --git a/net/minecraft/world/entity/monster/Strider.java b/net/minecraft/world/entity/monster/Strider.java
-index cbae85171a1bb64ee3be40ba211d88e68bf672e4..5d0e653214bf3e688448e6fa4e89abcbaa7de92f 100644
+index cbae85171a1bb64ee3be40ba211d88e68bf672e4..9f88a4692c12349fe2c84b731393bcca934289b3 100644
 --- a/net/minecraft/world/entity/monster/Strider.java
 +++ b/net/minecraft/world/entity/monster/Strider.java
 @@ -526,9 +526,25 @@ public class Strider extends Animal implements ItemSteerable, Saddleable {
              super(strider, level);
          }
-
+ 
 +        // DeerFolia start - petal - async path processing
 +        private static final cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator = (cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorFeatures nodeEvaluatorFeatures) -> {
 +            WalkNodeEvaluator nodeEvaluator = new WalkNodeEvaluator();
@@ -695,7 +695,7 @@ index cbae85171a1bb64ee3be40ba211d88e68bf672e4..5d0e653214bf3e688448e6fa4e89abcb
 +            // DeerFolia end
              return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
          }
-
+ 
 diff --git a/net/minecraft/world/entity/monster/ZombifiedPiglin.java b/net/minecraft/world/entity/monster/ZombifiedPiglin.java
 index c7eab22fe4a0541ebdba96961521271ee5619cd4..1c0003ef49f67a37ac02c32e43962fa16a49026e 100644
 --- a/net/minecraft/world/entity/monster/ZombifiedPiglin.java
@@ -703,7 +703,7 @@ index c7eab22fe4a0541ebdba96961521271ee5619cd4..1c0003ef49f67a37ac02c32e43962fa1
 @@ -58,6 +58,16 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
      private int ticksUntilNextAlert;
      private HurtByTargetGoal pathfinderGoalHurtByTarget; // Paper - fix PigZombieAngerEvent cancellation
-
+ 
 +    // DeerFolia - Start Async Pathfinding - shadowing the target to not screw up the folia logic
 +    // if not, the async pathfinding can't get the target from the entity region thread
 +    private final java.util.concurrent.atomic.AtomicReference<LivingEntity> localTarget = new java.util.concurrent.atomic.AtomicReference<>();
@@ -720,13 +720,13 @@ index c7eab22fe4a0541ebdba96961521271ee5619cd4..1c0003ef49f67a37ac02c32e43962fa1
 @@ -167,6 +177,7 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
              this.setLastHurtByPlayer((Player)livingEntity);
          }
-
+ 
 +        localTarget.set(livingEntity); // DeerFolia - Async Pathfinding
          return super.setTarget(livingEntity, reason, fireEvent); // CraftBukkit
      }
-
+ 
 diff --git a/net/minecraft/world/entity/monster/warden/Warden.java b/net/minecraft/world/entity/monster/warden/Warden.java
-index 71db946a4aad45fae416c688b2a412be3d71d400..79c7888d73f08dd86b9ae66ca17e71434109979f 100644
+index 45e37d03b0059514466ed26554ae6e48fd0443fb..b5e164b0de29b9b6dbfbc4417b2d17a08943c7ef 100644
 --- a/net/minecraft/world/entity/monster/warden/Warden.java
 +++ b/net/minecraft/world/entity/monster/warden/Warden.java
 @@ -579,6 +579,16 @@ public class Warden extends Monster implements VibrationSystem {
@@ -769,7 +769,7 @@ index d6d3c8f5e5dd4a8cab0d3fcc131c3a59f06130c6..bd95abeee23019b3406495f0a5e623e6
 @@ -26,6 +26,17 @@ public class Path {
          this.reached = reached;
      }
-
+ 
 +    // DeerFolia start - petal - async path processing
 +    /**
 +     * checks if the path is completely processed in the case of it being computed async
@@ -786,14 +786,14 @@ index d6d3c8f5e5dd4a8cab0d3fcc131c3a59f06130c6..bd95abeee23019b3406495f0a5e623e6
      }
 @@ -99,6 +110,7 @@ public class Path {
      }
-
+ 
      public boolean sameAs(@Nullable Path pathentity) {
 +        if (pathentity == this) return true; // DeerFolia - petal - short circuit
          if (pathentity == null) {
              return false;
          } else if (pathentity.nodes.size() != this.nodes.size()) {
 diff --git a/net/minecraft/world/level/pathfinder/PathFinder.java b/net/minecraft/world/level/pathfinder/PathFinder.java
-index 81de6c1bbef1cafd3036e736dd305fbedc8368c6..78ea0357d3e987c517a1be32eb95d0d13c0f4db6 100644
+index 81de6c1bbef1cafd3036e736dd305fbedc8368c6..fe74771f080621440c9bfb41c6e2b9b70d749f7d 100644
 --- a/net/minecraft/world/level/pathfinder/PathFinder.java
 +++ b/net/minecraft/world/level/pathfinder/PathFinder.java
 @@ -25,10 +25,18 @@ public class PathFinder {
@@ -801,7 +801,7 @@ index 81de6c1bbef1cafd3036e736dd305fbedc8368c6..78ea0357d3e987c517a1be32eb95d0d1
      private static final boolean DEBUG = false;
      private final BinaryHeap openSet = new BinaryHeap();
 +    private final @Nullable cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator; // DeerFolia - petal - we use this later to generate an evaluator
-
+ 
 -    public PathFinder(NodeEvaluator nodeEvaluator, int maxVisitedNodes) {
 +    public PathFinder(NodeEvaluator nodeEvaluator, int maxVisitedNodes, @Nullable cn.lunadeer.mc.deerfolia.async.path.NodeEvaluatorGenerator nodeEvaluatorGenerator) { // DeerFolia - petal - add nodeEvaluatorGenerator
          this.nodeEvaluator = nodeEvaluator;
@@ -814,10 +814,10 @@ index 81de6c1bbef1cafd3036e736dd305fbedc8368c6..78ea0357d3e987c517a1be32eb95d0d1
 +        this(pathNodeMaker, maxVisitedNodes, null);
 +        // DeerFolia end
      }
-
+ 
      public void setMaxVisitedNodes(int maxVisitedNodes) {
 @@ -37,26 +45,63 @@ public class PathFinder {
-
+ 
      @Nullable
      public Path findPath(PathNavigationRegion region, Mob mob, Set<BlockPos> targetPositions, float maxRange, int accuracy, float searchDepthMultiplier) {
 -        this.openSet.clear();

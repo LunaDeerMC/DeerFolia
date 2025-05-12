@@ -25,19 +25,28 @@ public class KaiijuEntityLimits {
     protected static final String HEADER =
             "Per region entity limits for Kaiiju.\n"
                     + "If there are more of particular entity type in a region than limit, entity ticking will be throttled.\n"
-                    + "Example: for Wither limit 100 & 300 Withers in a region -> 100 Withers tick every tick & every Wither ticks every 3 ticks.\n"
-                    + "Available entities: GlowSquid, Ambient, Bat, Animal, Bee, Cat, Chicken, Cod, Cow, Dolphin, Fish, FishSchool, Fox, Golem, IronGolem, "
-                    + "MushroomCow, Ocelot, Panda, Parrot, Perchable, Pig, PolarBear, PufferFish, Rabbit, Salmon, Sheep, Snowman, Squid, TropicalFish, Turtle, "
-                    + "WaterAnimal, Wolf, Allay, Axolotl, Camel, Frog, Tadpole, Goat, Horse, HorseAbstract, HorseChestedAbstract, HorseDonkey, HorseMule, "
-                    + "HorseSkeleton, HorseZombie, Llama, LlamaTrader, Sniffer, EnderCrystal, EnderDragon, Wither, ArmorStand, Hanging, ItemFrame, Leash, "
-                    + "Painting, GlowItemFrame, FallingBlock, Item, TNTPrimed, Blaze, CaveSpider, Creeper, Drowned, Enderman, Endermite, Evoker, Ghast, "
-                    + "GiantZombie, Guardian, GuardianElder, IllagerAbstract, IllagerIllusioner, IllagerWizard, MagmaCube, Monster, MonsterPatrolling, Phantom, "
-                    + "PigZombie, Pillager, Ravager, Shulker, Silverfish, Skeleton, SkeletonAbstract, SkeletonStray, SkeletonWither, Slime, Spider, Strider, Vex, "
-                    + "Vindicator, Witch, Zoglin, Zombie, ZombieHusk, ZombieVillager, Hoglin, Piglin, PiglinAbstract, PiglinBrute, Warden, Villager, "
-                    + "VillagerTrader, Arrow, DragonFireball, Egg, EnderPearl, EnderSignal, EvokerFangs, Fireball, FireballFireball, Fireworks, FishingHook, "
-                    + "LargeFireball, LlamaSpit, Potion, Projectile, ProjectileThrowable, ShulkerBullet, SmallFireball, Snowball, SpectralArrow, ThrownExpBottle, "
-                    + "ThrownTrident, TippedArrow, WitherSkull, Raider, ChestBoat, Boat, MinecartAbstract, MinecartChest, MinecartCommandBlock, MinecartContainer, "
-                    + "MinecartFurnace, MinecartHopper, MinecartMobSpawner, MinecartRideable, MinecartTNT\n";
+                    + "Example: for WitherBoss limit 100 & 300 WitherBosss in a region -> 100 WitherBosss tick every tick & every WitherBoss ticks every 3 ticks.\n"
+                    + "\n"
+                    + "Available entities: AbstractArrow, AbstractBoat, AbstractChestBoat, AbstractChestedHorse, AbstractFish, \n"
+                    + "AbstractGolem, AbstractHorse, AbstractHurtingProjectile, AbstractIllager, AbstractMinecart, AbstractMinecartContainer\n"
+                    + "AbstractPiglin, AbstractSchoolingFish, AbstractSkeleton, AbstractVillager, AbstractWindCharge, AgeableMob\n"
+                    + "AgeableWaterCreature, Allay, AmbientCreature, Animal, AreaEffectCloud, Armadillo, ArmorStand, Arrow, Axolotl\n"
+                    + "Bat, Bee, Blaze, BlockAttachedEntity, BlockDisplay, Boat, Bogged, Breeze, BreezeWindCharge, Camel, Cat\n"
+                    + "CaveSpider, ChestBoat, ChestRaft, Chicken, Cod, Cow, Creaking, Creeper, Display, Dolphin, Donkey, DragonFireball\n"
+                    + "Drowned, ElderGuardian, EndCrystal, EnderDragon, EnderDragonPart, EnderMan, Endermite, Entity, Evoker\n"
+                    + "EvokerFangs, ExperienceOrb, EyeOfEnder, FallingBlockEntity, Fireball, FireworkRocketEntity, FishingHook\n"
+                    + "FlyingMob, Fox, Frog, Ghast, Giant, GlowItemFrame, GlowSquid, Goat, Guardian, HangingEntity, Hoglin, Horse\n"
+                    + "Husk, Illusioner, Interaction, IronGolem, ItemDisplay, ItemEntity, ItemFrame, LargeFireball, LeashFenceKnotEntity\n"
+                    + "LightningBolt, LivingEntity, Llama, LlamaSpit, MagmaCube, Marker, Minecart, MinecartChest, MinecartCommandBlock\n"
+                    + "MinecartFurnace, MinecartHopper, MinecartSpawner, MinecartTNT, Mob, Monster, Mule, MushroomCow, Ocelot\n"
+                    + "OminousItemSpawner, Painting, Panda, Parrot, PathfinderMob, PatrollingMonster, Phantom, Pig, Piglin, PiglinBrute\n"
+                    + "Pillager, Player, PolarBear, PrimedTnt, Projectile, Pufferfish, Rabbit, Raft, Raider, Ravager, Salmon, Sheep\n"
+                    + "ShoulderRidingEntity, Shulker, ShulkerBullet, Silverfish, Skeleton, SkeletonHorse, Slime, SmallFireball, Sniffer\n"
+                    + "SnowGolem, Snowball, SpectralArrow, SpellcasterIllager, Spider, Squid, Stray, Strider, Tadpole, TamableAnimal\n"
+                    + "TextDisplay, ThrowableItemProjectile, ThrowableProjectile, ThrownEgg, ThrownEnderpearl, ThrownExperienceBottle\n"
+                    + "ThrownPotion, ThrownTrident, TraderLlama, TropicalFish, Turtle, VehicleEntity, Vex, Villager, Vindicator\n"
+                    + "WanderingTrader, Warden, WaterAnimal, WindCharge, Witch, WitherBoss, WitherSkeleton, WitherSkull, Wolf, Zoglin\n"
+                    + "Zombie, ZombieHorse, ZombieVillager, ZombifiedPiglin";
     protected static File ENTITY_LIMITS_FILE;
     public static YamlConfiguration entityLimitsConfig;
 
@@ -69,10 +78,11 @@ public class KaiijuEntityLimits {
             if (setup) {
                 entityLimitsConfig.options().header(HEADER);
                 entityLimitsConfig.options().copyDefaults(true);
-                entityLimitsConfig.set("Wither.limit", 1000);
-                entityLimitsConfig.set("Wither.removal", 5000);
+                entityLimitsConfig.set("ZombifiedPiglin.limit", 1000);
+                entityLimitsConfig.set("ZombifiedPiglin.removal", 3000);
                 entityLimitsConfig.set("Axolotl.limit", 1000);
-                entityLimitsConfig.set("Axolotl.removal", 5000);
+                entityLimitsConfig.set("Axolotl.removal", 3000);
+
                 try {
                     entityLimitsConfig.save(ENTITY_LIMITS_FILE);
                 } catch (IOException ex) {
@@ -91,6 +101,7 @@ public class KaiijuEntityLimits {
                     entityClasses.put(entityName, classInfo);
                 }
             }
+            LOGGER.info("kaiiju-entity-limits.yml available entities: " + entityClasses.keySet().stream().sorted().toList());
 
             for (String key : entityLimitsConfig.getKeys(false)) {
                 if (!entityClasses.containsKey(key)) {
