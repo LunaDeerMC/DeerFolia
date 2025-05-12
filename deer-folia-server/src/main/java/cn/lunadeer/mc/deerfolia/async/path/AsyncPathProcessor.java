@@ -1,7 +1,7 @@
-package cn.lunadeer.deerfolia.async.path;
+package cn.lunadeer.mc.deerfolia.async.path;
 
+import cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.world.level.pathfinder.Path;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,8 +15,8 @@ import java.util.function.Consumer;
 public class AsyncPathProcessor {
     private static final Executor pathProcessingExecutor = new ThreadPoolExecutor(
             1,
-            GlobalConfiguration.get().asyncPathfinding.asyncPathfindingMaxThreads,
-            GlobalConfiguration.get().asyncPathfinding.asyncPathfindingKeepalive, TimeUnit.SECONDS,
+            DeerFoliaConfiguration.asyncPathfinding.asyncPathfindingMaxThreads,
+            DeerFoliaConfiguration.asyncPathfinding.asyncPathfindingKeepAlive, TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(),
             new ThreadFactoryBuilder()
                     .setNameFormat("DeerFolia Async Pathfinding Thread - %d")

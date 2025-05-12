@@ -1,4 +1,4 @@
-package cn.lunadeer.deerfolia.async.path;
+package cn.lunadeer.mc.deerfolia.async.path;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;

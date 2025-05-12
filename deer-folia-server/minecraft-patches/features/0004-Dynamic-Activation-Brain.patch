@@ -5,31 +5,31 @@ Subject: [PATCH] Dynamic Activation Brain
 
 
 diff --git a/io/papermc/paper/entity/activation/ActivationRange.java b/io/papermc/paper/entity/activation/ActivationRange.java
-index c260741a87513b89a5cc62c543fb9f990f86491e..a36072433908fb3867baa291003f50ab22eb5046 100644
+index c260741a87513b89a5cc62c543fb9f990f86491e..c76385656d13e0436219cc51c880164bed0eb875 100644
 --- a/io/papermc/paper/entity/activation/ActivationRange.java
 +++ b/io/papermc/paper/entity/activation/ActivationRange.java
 @@ -168,6 +168,24 @@ public final class ActivationRange {
                  }
  
                  ActivationRange.activateEntity(entity, bbByType); // Folia - threaded regions
-+                // DeerFolia start - puffish DAB
-+                if (io.papermc.paper.configuration.GlobalConfiguration.get().dynamicActivationBrain.dearEnabled && entity.getType().dabEnabled) {
++                // DeerFolia start - pufferfish DAB
++                if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.enabled && entity.getType().dabEnabled) {
 +                    if (!entity.activatedPriorityReset) {
 +                        entity.activatedPriorityReset = true;
-+                        entity.activatedPriority = io.papermc.paper.configuration.GlobalConfiguration.get().dynamicActivationBrain.maximumActivationPrio;
++                        entity.activatedPriority = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.maximumActivationPrio;
 +                    }
 +                    net.minecraft.world.phys.Vec3 playerVec = player.position();
 +                    net.minecraft.world.phys.Vec3 entityVec = entity.position();
 +                    double diffX = playerVec.x - entityVec.x, diffY = playerVec.y - entityVec.y, diffZ = playerVec.z - entityVec.z;
 +                    int squaredDistance = (int) (diffX * diffX + diffY * diffY + diffZ * diffZ);
-+                    int startDistance = io.papermc.paper.configuration.GlobalConfiguration.get().dynamicActivationBrain.startDistance;
++                    int startDistance = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.startDistance;
 +                    entity.activatedPriority = squaredDistance > startDistance * startDistance ?
-+                            Math.max(1, Math.min(squaredDistance >> io.papermc.paper.configuration.GlobalConfiguration.get().dynamicActivationBrain.activationDistanceMod, entity.activatedPriority)) :
++                            Math.max(1, Math.min(squaredDistance >> cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.activationDistanceMod, entity.activatedPriority)) :
 +                            1;
 +                } else {
 +                    entity.activatedPriority = 1;
 +                }
-+                // DeerFolia end - puffish DAB
++                // DeerFolia end - pufferfish DAB
              }
          }
      }
@@ -41,20 +41,20 @@ index f2d2ddfd964bff914e41c0b4150fe1aad7866ebf..ea2bc406e73510d59425aa4c3c6bf980
              regionizedWorldData // Folia - regionised ticking
                  .forEachTickingEntity( // Folia - regionised ticking
                      entity -> {
-+                        entity.activatedPriorityReset = false; // DeerFolia - puffish DAB
++                        entity.activatedPriorityReset = false; // DeerFolia - pufferfish DAB
                          if (!entity.isRemoved()) {
                              if (!tickRateManager.isEntityFrozen(entity)) {
                                  profilerFiller.push("checkDespawn");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 8788722012311737eaef7dada76240316ef6fa5d..034e9f6939fa4fcd3c92d8bf03ab6f3364cd8b18 100644
+index 4af15049ec97af8ed60388d93b12c3afcb3ddfff..1b58f9d5b293151af88db249cd3a6bad75de43e9 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -343,6 +343,8 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
      public long activatedTick = Integer.MIN_VALUE;
      public boolean isTemporarilyActive;
      public long activatedImmunityTick = Integer.MIN_VALUE;
-+    public boolean activatedPriorityReset = false; // DeerFolia - puffish DAB
-+    public int activatedPriority = io.papermc.paper.configuration.GlobalConfiguration.get().dynamicActivationBrain.maximumActivationPrio; // DeerFolia - puffish DAB
++    public boolean activatedPriorityReset = false; // DeerFolia - pufferfish DAB
++    public int activatedPriority = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.maximumActivationPrio; // DeerFolia - pufferfish DAB
  
      public void inactiveTick() {
      }
@@ -66,7 +66,7 @@ index d9cc1d7e56c37d5ce92544edc10e89dbc89dd15d..2a8b1e42104d0f67647058a2da4092fc
      private final EntityDimensions dimensions;
      private final float spawnDimensionsScale;
      private final FeatureFlagSet requiredFeatures;
-+    public boolean dabEnabled = false; // DeerFolia - puffish DAB
++    public boolean dabEnabled = false; // DeerFolia - pufferfish DAB
  
      private static <T extends Entity> EntityType<T> register(ResourceKey<EntityType<?>> key, EntityType.Builder<T> builder) {
          return Registry.register(BuiltInRegistries.ENTITY_TYPE, key, builder.build(key));
@@ -79,11 +79,11 @@ index da922d4c0ffa0f40d5e8dd69487bf30dbbbeed87..7da1b749718d2eb2f53800c7bd4f74e8
      public void inactiveTick() {
          super.inactiveTick();
 -        if (this.goalSelector.inactiveTick()) {
-+        if (this.goalSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - puffish DAB
++        if (this.goalSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - pufferfish DAB
              this.goalSelector.tick();
          }
 -        if (this.targetSelector.inactiveTick()) {
-+        if (this.targetSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - puffish DAB
++        if (this.targetSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - pufferfish DAB
              this.targetSelector.tick();
          }
      }
@@ -91,20 +91,20 @@ index da922d4c0ffa0f40d5e8dd69487bf30dbbbeed87..7da1b749718d2eb2f53800c7bd4f74e8
          int i = this.tickCount + this.getId();
          if (i % 2 != 0 && this.tickCount > 1) {
              profilerFiller.push("targetSelector");
-+            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
              this.targetSelector.tickRunningGoals(false);
              profilerFiller.pop();
              profilerFiller.push("goalSelector");
-+            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
              this.goalSelector.tickRunningGoals(false);
              profilerFiller.pop();
          } else {
              profilerFiller.push("targetSelector");
-+            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
              this.targetSelector.tick();
              profilerFiller.pop();
              profilerFiller.push("goalSelector");
-+            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
              this.goalSelector.tick();
              profilerFiller.pop();
          }
@@ -117,17 +117,17 @@ index f6c673b1abe53afcb14fd68d590431027ed29f67..f89479f49e576dddca78b154212d8ebd
      @Override
      protected void tick(ServerLevel level, Villager owner, long gameTime) {
 -        if (gameTime % 100L == 0L) {
-+        // DeerFolia start - puffish DAB
++        // DeerFolia start - pufferfish DAB
 +        // if (time % 100L == 0L) {
 +        if (owner.nextGolemPanic < 0) owner.nextGolemPanic = gameTime + 100;
 +        if (--owner.nextGolemPanic < gameTime) {
 +            owner.nextGolemPanic = -1;
-+            // DeerFolia end - puffish DAB
++            // DeerFolia end - pufferfish DAB
              owner.spawnGolemIfNeeded(level, gameTime, 3);
          }
      }
 diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
-index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..428cb85357e347e11a49fb2c8462f4890883b056 100644
+index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..48ce2ccddb5572ae735d67ef1f9a0650ba5db2ef 100644
 --- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
 +++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
 @@ -38,10 +38,16 @@ public class GoalSelector {
@@ -135,10 +135,10 @@ index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..428cb85357e347e11a49fb2c8462f489
  
      // Paper start - EAR 2
 -    public boolean inactiveTick() {
-+    // DeerFolia start - puffish DAB
++    // DeerFolia start - pufferfish DAB
 +    // public boolean inactiveTick() {
 +    public boolean inactiveTick(int tickRate, boolean inactive) {
-+        if (inactive && !io.papermc.paper.configuration.GlobalConfiguration.get().dynamicActivationBrain.dearEnabled) tickRate = 4; // reset to Paper's
++        if (inactive && !cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.enabled) tickRate = 4; // reset to Paper's
 +        tickRate = Math.min(tickRate, 3);
          this.curRate++;
 -        return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
@@ -157,12 +157,12 @@ index aafb32295d4ce239609bb62e6bdf2261739f7aa0..771a9071df84a438d59718d0bf29f10e
          return 0.4F;
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("allayBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("allayActivityUpdate");
@@ -174,12 +174,12 @@ index dfdbcb31458095a71c187efc2774ecc4945dd11b..c406c9b5b04f8f131abb60656f8b8997
          return ArmadilloAi.makeBrain(this.brainProvider().makeBrain(dynamic));
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("armadilloBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          ((Brain<Armadillo>)this.brain).tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("armadilloActivityUpdate");
@@ -191,12 +191,12 @@ index 9faa929734035c167e54569ce34d841291856589..1d56985f7714da1dde9e14936e2afcd6
          return true;
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("axolotlBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("axolotlActivityUpdate");
@@ -208,13 +208,13 @@ index 3ac169f83c5619b5c00c866354a2e066a0a738cc..27ad211cee61612a5ee834a064ae1dab
          return pose == Pose.SITTING ? SITTING_DIMENSIONS.scale(this.getAgeScale()) : super.getDefaultDimensions(pose);
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("camelBrain");
          Brain<?> brain = this.getBrain();
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          ((Brain<Camel>)brain).tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("camelActivityUpdate");
@@ -226,12 +226,12 @@ index 12c655b60087a2f6122ffa508b3224159d8777b0..0b6301eeb802297f0136cef4b4806d98
              .ifPresent(this::setVariant);
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("frogBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("frogActivityUpdate");
@@ -243,12 +243,12 @@ index 97adf8142cdd322c4873c420ed760e9dee34da23..f14392dbea182e57330724ab91199468
          return SoundEvents.TADPOLE_FLOP;
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("tadpoleBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("tadpoleActivityUpdate");
@@ -260,12 +260,12 @@ index c91e1f8e5fd39bcc48f9f0bf002770b2dff74404..6e8e325b344a9f24ae2046771bb1e1b1
          return (Brain<Goat>)super.getBrain();
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("goatBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          profilerFiller.push("goatActivityUpdate");
@@ -277,12 +277,12 @@ index 62ca7871d1e5d0fe611948ad43e44c23fdc2d3f8..1ab97a9af0b597ff353ce750149b0311
          return Brain.provider(SnifferAi.MEMORY_TYPES, SnifferAi.SENSOR_TYPES);
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("snifferBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.popPush("snifferActivityUpdate");
          SnifferAi.updateActivity(this);
@@ -294,12 +294,12 @@ index 0ddc0fe06a1b701f88ed8f8041ecd68f7da6c86d..b2a45601d4b28d1225dfb42535760747
          return (Brain<Hoglin>)super.getBrain();
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("hoglinBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          HoglinAi.updateActivity(this);
@@ -311,12 +311,12 @@ index 0257eada48b35ea024520afe30596beae8a7ef1e..5b6e7c0a7df340012756d0b13360d528
          return !this.cannotHunt;
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("piglinBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          PiglinAi.updateActivity(this);
@@ -328,12 +328,12 @@ index 9f476e587d7df797129e49738f101cccca7e10b7..71db946a4aad45fae416c688b2a412be
          }
      }
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("wardenBrain");
-+        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
          this.getBrain().tick(level, this);
          profilerFiller.pop();
          super.customServerAiStep(level);
@@ -345,7 +345,7 @@ index 7ea74aeb905b95e5919d74df5fbc5e8f7a9985e3..7524daafef8db054c64ed8a0759686a2
          (villager, holder) -> holder.is(PoiTypes.MEETING)
      );
  
-+    public long nextGolemPanic = -1; // DeerFolia - puffish DAB
++    public long nextGolemPanic = -1; // DeerFolia - pufferfish DAB
 +
      public Villager(EntityType<? extends Villager> entityType, Level level) {
          this(entityType, level, VillagerType.PLAINS);
@@ -354,7 +354,7 @@ index 7ea74aeb905b95e5919d74df5fbc5e8f7a9985e3..7524daafef8db054c64ed8a0759686a2
      }
      // Paper end - EAR 2
  
-+    private int behaviorTick = 0; // DeerFolia - puffish DAB
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
      @Override
      protected void customServerAiStep(ServerLevel level) {
          // Paper start - EAR 2
@@ -363,12 +363,12 @@ index 7ea74aeb905b95e5919d74df5fbc5e8f7a9985e3..7524daafef8db054c64ed8a0759686a2
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("villagerBrain");
 -        if (!inactive) this.getBrain().tick(level, this); // Paper - EAR 2
-+        // DeerFolia start - puffish DAB
++        // DeerFolia start - pufferfish DAB
 +        // if (!inactive) this.getBrain().tick(level, this); // Paper - EAR 2
 +        if (!inactive && this.behaviorTick++ % this.activatedPriority == 0) {
 +            this.getBrain().tick((ServerLevel) this.level(), this); // Paper
 +        }
-+        // DeerFolia end - puffish DAB
++        // DeerFolia end - pufferfish DAB
          profilerFiller.pop();
          if (this.assignProfessionWhenSpawned) {
              this.assignProfessionWhenSpawned = false;
