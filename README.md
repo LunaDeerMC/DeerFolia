@@ -18,6 +18,7 @@ DeerFolia 是一个基于 [Folia](https://papermc.io/software/folia) 的 Minecra
 - [Dynamic Activation of Brain (Pufferfish)](deer-folia-server/minecraft-patches/features/0004-Dynamic-Activation-Brain.patch)；
 - [Async Path Finding (Pufferfish)](deer-folia-server/minecraft-patches/features/0005-Async-pathfinding.patch)；
 - [Kaiiju Entity Throttling (Kaiiju)](deer-folia-server/minecraft-patches/features/0007-Kaiiju-Entity-Throttling.patch)；
+- [Kaiiju Skip Empty Listeners Event](deer-folia-server/paper-patches/features/0002-Kaiiju-Skip-Empty-Listeners-Event.patch)；
 - ~~还原了 [虚空交易](https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/src/branch/master/patches/server/0002-Allow-void-trading.patch)~~（疑似已被 mojang 官方修复）；
 - ~~还原了 [刷线机制](https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/src/branch/master/patches/server/0004-Allow-tripwire-duplication.patch)~~（mojang已在1.21.3修复）；
 
