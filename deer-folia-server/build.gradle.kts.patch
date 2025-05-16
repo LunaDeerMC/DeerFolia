@@ -1,8 +1,11 @@
 --- a/folia-server/build.gradle.kts
 +++ b/folia-server/build.gradle.kts
-@@ -22,6 +_,7 @@
+@@ -20,8 +_,9 @@
+     minecraftVersion = providers.gradleProperty("mcVersion")
+     // macheOldPath = file("F:\\Projects\\PaperTooling\\mache\\versions\\1.21.4\\src\\main\\java")
      // gitFilePatches = true
-     
+-    
++
      val fork = forks.register("folia") {
 +        rootDirectory = upstreamsDirectory().map { it.dir("folia") }
          upstream.patchDir("paperServer") {
