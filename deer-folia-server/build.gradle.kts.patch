@@ -13,7 +13,7 @@
      }
  
 -    activeFork = fork
-+    val deerfolia = forks.register("deer-folia") {
++    val deerFolia = forks.register("DeerFolia") {
 +        forks = fork
 +        upstream.patchRepo("paperServer") {
 +            upstreamRepo = fork.patchedRepo("paperServer")
@@ -35,7 +35,7 @@
 +        }
 +    }
 +
-+    activeFork = deerfolia
++    activeFork = deerFolia
  
      spigot {
          buildDataRef = "3edaf46ec1eed4115ce1b18d2846cded42577e42"
