@@ -1,0 +1,45 @@
+name: Java CI-CD with Gradle
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Pull & Checkout"
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: "Set up JDK 17"
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          cache: 'gradle'
+      - name: "Config Git"
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "actions"
+      - name: "Apply Patches"
+        run: ./gradlew applyAllPatches
+      - name: "Build Mojmap"
+        run: ./gradlew createMojmapPaperclipJar
+      - name: "Copy jar to staging"
+        run: mkdir staging && cp deer-folia-server/build/libs/deer-folia-paperclip-*-mojmap.jar staging/
+      - name: "Rename file to DeerFolia-{git tag name}.jar"
+        run: |
+          GIT_TAG=$(git describe --tags --abbrev=0)
+          ls staging
+          mv staging/*.jar staging/DeerFolia-$GIT_TAG.jar
+          ls staging
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "${{ steps.build.outputs.GIT_TAG }}"
+          prerelease: false
+          files: |
+            staging/*.jar

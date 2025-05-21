@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Mon, 23 Dec 2024 11:42:32 +0800
+Subject: [PATCH] Optimize for FurnitureCore plugin
+
+
+diff --git a/src/main/java/cn/lunadeer/FurnitureCore.java b/src/main/java/cn/lunadeer/FurnitureCore.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8219e467119770289b16ad068a31b3587300aa3
+--- /dev/null
++++ b/src/main/java/cn/lunadeer/FurnitureCore.java
+@@ -0,0 +1,9 @@
++package cn.lunadeer;
++
++import org.bukkit.NamespacedKey;
++
++import java.util.Locale;
++
++public class FurnitureCore {
++    public static NamespacedKey key = new NamespacedKey("FurnitureCore".toLowerCase(Locale.ROOT), "furniture");
++}
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index dd082229682801fad556161e93f6a556c611e145..9bdaed9b01ac647e2b83b0315791ffac07fa991d 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -815,6 +815,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
+             profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); try { // Folia - profiler
+             regionizedWorldData.forEachTickingEntity((entity) -> { // Folia - regionised ticking
++                if (entity.getBukkitEntity().getPersistentDataContainer().has(cn.lunadeer.FurnitureCore.key)) return; // DeerFolia - FurnitureCore - don't tick furniture entities
+                 entity.activatedPriorityReset = false; // DeerFolia - puffish DAB
+                 if (!entity.isRemoved()) {
+                     if (!tickratemanager.isEntityFrozen(entity)) {

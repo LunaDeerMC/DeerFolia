@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Wed, 7 Aug 2024 17:29:43 +0800
+Subject: [PATCH] Modify tps command to show more details
+
+
+diff --git a/src/main/java/io/papermc/paper/threadedregions/TickRegions.java b/src/main/java/io/papermc/paper/threadedregions/TickRegions.java
+index 988fe74578065c9464f5639e5cc6af79619edef5..cc09bfad668f9a4f5de7fe20cd6b363f60a8a72d 100644
+--- a/src/main/java/io/papermc/paper/threadedregions/TickRegions.java
++++ b/src/main/java/io/papermc/paper/threadedregions/TickRegions.java
+@@ -2,6 +2,7 @@ package io.papermc.paper.threadedregions;
+ 
+ import ca.spottedleaf.concurrentutil.scheduler.SchedulerThreadPool;
+ import ca.spottedleaf.concurrentutil.util.TimeUtil;
++import ca.spottedleaf.moonrise.common.list.ReferenceList;
+ import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager;
+ import com.mojang.logging.LogUtils;
+ import io.papermc.paper.configuration.GlobalConfiguration;
+@@ -11,9 +12,14 @@ import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
+ import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+ import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerChunkCache;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
+ import org.slf4j.Logger;
++
++import java.util.ArrayList;
+ import java.util.Iterator;
++import java.util.List;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicLong;
+@@ -134,6 +140,8 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+         private final AtomicInteger entityCount = new AtomicInteger();
+         private final AtomicInteger playerCount = new AtomicInteger();
+         private final AtomicInteger chunkCount = new AtomicInteger();
++        private final List<ServerPlayer> localPlayers = new ArrayList<>();
++        private ReferenceList<ServerChunkCache.ChunkAndHolder> chunks;
+ 
+         public int getEntityCount() {
+             return this.entityCount.get();
+@@ -147,10 +155,31 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+             return this.chunkCount.get();
+         }
+ 
++        public String getLocalPlayers() {
++            final StringBuilder sb = new StringBuilder();
++            for (final ServerPlayer player : this.localPlayers) {
++                sb.append(player.getName().getString()).append(", ");
++            }
++            return sb.toString();
++        }
++
++        public String getTickingChunks() {
++            final StringBuilder sb = new StringBuilder();
++            for (final ServerChunkCache.ChunkAndHolder chunk : this.chunks) {
++                sb.append("[").append(chunk.chunk().getPos().x).append(", ").append(chunk.chunk().getPos().z).append("], ");
++            }
++            return sb.toString();
++        }
++
+         void updateFrom(final RegionizedWorldData data) {
+             this.entityCount.setRelease(data == null ? 0 : data.getEntityCount());
+             this.playerCount.setRelease(data == null ? 0 : data.getPlayerCount());
+             this.chunkCount.setRelease(data == null ? 0 : data.getChunkCount());
++            this.localPlayers.clear();
++            if (data != null) {
++                this.localPlayers.addAll(data.getLocalPlayers());
++            }
++            this.chunks = data == null ? null : data.getTickingChunks();
+         }
+ 
+         static void updateCurrentRegion() {
+diff --git a/src/main/java/io/papermc/paper/threadedregions/commands/CommandServerHealth.java b/src/main/java/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
+index 012d3a7da7fe483393a0888c823bd2e78f5c3908..6a06726c28695c0e639f0517274078d3c673fbcf 100644
+--- a/src/main/java/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
++++ b/src/main/java/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
+@@ -73,7 +73,9 @@ public final class CommandServerHealth extends Command {
+             .append(Component.text("Chunks: ", PRIMARY))
+             .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getChunkCount()), INFORMATION))
+             .append(Component.text(" Players: ", PRIMARY))
+-            .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getPlayerCount()), INFORMATION))
++            .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getPlayerCount()), INFORMATION)
++                    .hoverEvent(HoverEvent.showText(Component.text("Players: " + stats.getLocalPlayers(), SECONDARY)))
++            )
+             .append(Component.text(" Entities: ", PRIMARY))
+             .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getEntityCount()) + (newline ? "\n" : ""), INFORMATION))
+             .build();
+@@ -247,7 +249,10 @@ public final class CommandServerHealth extends Command {
+             final Component line = Component.text()
+                 .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+                 .append(Component.text("Region around block ", PRIMARY))
+-                .append(Component.text(location, INFORMATION))
++                .append(Component.text(location, INFORMATION)
++                        .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/minecraft:execute as @s in " + world.getWorld().getKey().toString() + " run tp " + centerBlockX + ".5 " + yLoc + " " + centerBlockZ + ".5"))
++                        .hoverEvent(HoverEvent.hoverEvent(HoverEvent.Action.SHOW_TEXT, Component.text("Click to teleport to " + location, SECONDARY)))
++                )
+                 .append(Component.text(":\n", PRIMARY))
+ 
+                 .append(Component.text("    ", PRIMARY))
+@@ -260,10 +265,7 @@ public final class CommandServerHealth extends Command {
+ 
+                 .append(Component.text("    ", PRIMARY))
+                 .append(formatRegionStats(region.getData().getRegionStats(), (i + 1) != len))
+-                .build()
+-
+-                .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/minecraft:execute as @s in " + world.getWorld().getKey().toString() + " run tp " + centerBlockX + ".5 " + yLoc + " " + centerBlockZ + ".5"))
+-                .hoverEvent(HoverEvent.hoverEvent(HoverEvent.Action.SHOW_TEXT, Component.text("Click to teleport to " + location, SECONDARY)));
++                .build();
+ 
+             lowestRegionsBuilder.append(line);
+         }

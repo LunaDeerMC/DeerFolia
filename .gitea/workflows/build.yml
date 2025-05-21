@@ -1,0 +1,50 @@
+name: Java CI-CD with Gradle
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Pull & Checkout"
+        uses: https://ssl.lunadeer.cn:14446/actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: "Set up JDK 21"
+        uses: https://ssl.lunadeer.cn:14446/actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          cache: 'gradle'
+      - name: "Config Git"
+        run: |
+          git config --global user.email "actions@gitea.com"
+          git config --global user.name "actions"
+          echo "proxy is ${{ vars.DEERCLOUD_PROXY }}"
+          export https_proxy=${{ vars.DEERCLOUD_PROXY }}
+      - name: "Apply Patches"
+        run: ./gradlew applyPatches
+      - name: "Build Mojmap"
+        run: ./gradlew createMojmapPaperclipJar
+      - name: "Copy jar to staging"
+        run: mkdir staging && cp build/libs/DeerFolia-paperclip-*-mojmap.jar staging/
+      - name: "Rename file to DeerFolia-{git tag name}.jar"
+        run: |
+          GIT_TAG=$(git describe --tags --abbrev=0)
+          mv staging/*.jar staging/DeerFolia-$GIT_TAG.jar
+      - name: "Setup go for release script"
+        run: |
+          wget --no-check-certificate https://studygolang.com/dl/golang/go1.22.0.linux-amd64.tar.gz
+          rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+          ln -s /usr/local/go/bin/go /usr/bin/go
+          go version
+      - name: "Release"
+        uses: https://ssl.lunadeer.cn:14446/zhangyuheng/release-action@main
+        with:
+          note: ""
+          files: |-
+            staging/*.jar
+          api_key: '${{secrets.RELEASE_TOKEN}}'

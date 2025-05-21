@@ -1,0 +1,261 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Mon, 26 Feb 2024 18:00:41 +0800
+Subject: [PATCH] Rebranding
+
+
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 8d2b5fec6fe27dca3ce01ba1ce50506179fc3b4d..d6d09ba35cd286831d2069885376f0a7c7c5730a 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -25,7 +25,7 @@ abstract class MockitoAgentProvider : CommandLineArgumentProvider {
+ // Paper end - configure mockito agent that is needed in newer java versions
+ 
+ dependencies {
+-    implementation(project(":folia-api")) // Folia
++    implementation(project(":deer-folia-api")) // Folia // DeerFolia
+     implementation("ca.spottedleaf:concurrentutil:0.0.2") // Paper - Add ConcurrentUtil dependency
+     // Paper start
+     implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
+@@ -100,14 +100,14 @@ tasks.jar {
+         val gitBranch = git("rev-parse", "--abbrev-ref", "HEAD").getText().trim() // Paper
+         attributes(
+             "Main-Class" to "org.bukkit.craftbukkit.Main",
+-            "Implementation-Title" to "Folia", // Folia
++            "Implementation-Title" to "DeerFolia", // Folia // DeerFolia
+             "Implementation-Version" to implementationVersion,
+             "Implementation-Vendor" to date, // Paper
+-            "Specification-Title" to "Folia", // Folia
++            "Specification-Title" to "DeerFolia", // Folia  // DeerFolia
+             "Specification-Version" to project.version,
+             "Specification-Vendor" to "Paper Team",
+-            "Brand-Id" to "papermc:folia", // Folia
+-            "Brand-Name" to "Folia", // Folia
++            "Brand-Id" to "lunadeer:deerfolia", // Folia   // DeerFolia
++            "Brand-Name" to "DeerFolia", // Folia   // DeerFolia
+             "Build-Number" to (build ?: ""),
+             "Build-Time" to Instant.now().toString(),
+             "Git-Branch" to gitBranch, // Paper
+diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
+index f5ff71e31516327be71924926938f1c9f0e503df..1baf3f278e393ead60caf062a718f621e289046d 100644
+--- a/src/main/java/com/destroystokyo/paper/Metrics.java
++++ b/src/main/java/com/destroystokyo/paper/Metrics.java
+@@ -592,7 +592,7 @@ public class Metrics {
+             boolean logFailedRequests = config.getBoolean("logFailedRequests", false);
+             // Only start Metrics, if it's enabled in the config
+             if (config.getBoolean("enabled", true)) {
+-                Metrics metrics = new Metrics("Folia", serverUUID, logFailedRequests, Bukkit.getLogger()); // Folia - we have our own bstats page
++                Metrics metrics = new Metrics("DeerFolia", serverUUID, logFailedRequests, Bukkit.getLogger()); // Folia - we have our own bstats page
+ 
+                 metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
+                     String minecraftVersion = Bukkit.getVersion();
+@@ -611,6 +611,10 @@ public class Metrics {
+                     paperVersion = "unknown";
+                 }
+                 metrics.addCustomChart(new Metrics.SimplePie("folia_version", () -> paperVersion)); // Folia - we have our own bstats page
++                metrics.addCustomChart(new Metrics.SimplePie("deer_folia_version", ()
++                        -> (org.bukkit.craftbukkit.Main.class.getPackage().getImplementationVersion() != null)
++                        ? org.bukkit.craftbukkit.Main.class.getPackage().getImplementationVersion()
++                        : "unknown")); // DeerFolia
+ 
+                 metrics.addCustomChart(new Metrics.DrilldownPie("java_version", () -> {
+                     Map<String, Map<String, Integer>> map = new HashMap<>();
+diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+index 29bd788ae8bc61c1e62a4f84b9e259931a7041ce..133d9974c5db973029750a08cac50665b2e3397f 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
++++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+@@ -35,25 +35,32 @@ public class PaperVersionFetcher implements VersionFetcher {
+     private static final Logger LOGGER = LogUtils.getClassLogger();
+     private static final int DISTANCE_ERROR = -1;
+     private static final int DISTANCE_UNKNOWN = -2;
+-    private static final String DOWNLOAD_PAGE = "https://papermc.io/downloads/paper";
++    // DeerFolia start
++    private static final String DOWNLOAD_PAGE = "https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/releases";
++    // DeerFolia end
+ 
+     @Override
+     public long getCacheTime() {
+         return 720000;
+     }
+ 
++
+     @Override
+     public Component getVersionMessage(final String serverVersion) {
+         final Component updateMessage;
+         final ServerBuildInfo build = ServerBuildInfo.buildInfo();
+-        if (build.buildNumber().isEmpty() && build.gitCommit().isEmpty()) {
+-            updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
+-        } else {
+-            updateMessage = getUpdateStatusMessage("PaperMC/Folia", build); // Folia
+-        }
+-        final @Nullable Component history = this.getHistory();
++        // DeerFolia start - Disable update check
++        updateMessage = Component.text("DeerFolia current does not support update check", NamedTextColor.YELLOW);
++        return updateMessage;
++        // if (build.buildNumber().isEmpty() && build.gitCommit().isEmpty()) {
++        //     updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
++        // } else {
++        //     updateMessage = getUpdateStatusMessage("PaperMC/Folia", build); // Folia
++        // }
++        // final @Nullable Component history = this.getHistory();
+ 
+-        return history != null ? Component.textOfChildren(updateMessage, Component.newline(), history) : updateMessage;
++        // return history != null ? Component.textOfChildren(updateMessage, Component.newline(), history) : updateMessage;
++        // DeerFolia end - Disable update check
+     }
+ 
+     private static Component getUpdateStatusMessage(final String repo, final ServerBuildInfo build) {
+diff --git a/src/main/java/com/destroystokyo/paper/console/PaperConsole.java b/src/main/java/com/destroystokyo/paper/console/PaperConsole.java
+index 6ee39b534b8d992655bc0cef3c299d12cbae0034..8fd162b6441ca1a6ee779d898ee854dc5b1343c5 100644
+--- a/src/main/java/com/destroystokyo/paper/console/PaperConsole.java
++++ b/src/main/java/com/destroystokyo/paper/console/PaperConsole.java
+@@ -20,7 +20,7 @@ public final class PaperConsole extends SimpleTerminalConsole {
+     @Override
+     protected LineReader buildReader(LineReaderBuilder builder) {
+         builder
+-                .appName("Paper")
++                .appName("DeerFolia") // DeerFolia
+                 .variable(LineReader.HISTORY_FILE, java.nio.file.Paths.get(".console_history"))
+                 .completer(new ConsoleCommandCompleter(this.server))
+                 .option(LineReader.Option.COMPLETE_IN_WORD, true);
+diff --git a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
+index e741201fdbea0dbbc0e42313ebd33368014c9dc4..d9229cd25c2f3ba698cbf73b259a6de50f5a3418 100644
+--- a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
++++ b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
+@@ -42,9 +42,9 @@ public record ServerBuildInfoImpl(
+         this(
+             getManifestAttribute(manifest, ATTRIBUTE_BRAND_ID)
+                 .map(Key::key)
+-                .orElse(Key.key("papermc", "folia")), // Folia
++                .orElse(Key.key("lunadeer", "deerfolia")), // Folia // DeerFolia - Rebrand
+             getManifestAttribute(manifest, ATTRIBUTE_BRAND_NAME)
+-                .orElse("Folia"), // Folia
++                .orElse("DeerFolia"), // Folia  // DeerFolia - Rebrand
+             SharedConstants.getCurrentVersion().getId(),
+             SharedConstants.getCurrentVersion().getName(),
+             getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
+diff --git a/src/main/java/net/minecraft/CrashReport.java b/src/main/java/net/minecraft/CrashReport.java
+index b24265573fdef5d9a964bcd76146f34542c420cf..806fffca351879e327fd642e364b882894209178 100644
+--- a/src/main/java/net/minecraft/CrashReport.java
++++ b/src/main/java/net/minecraft/CrashReport.java
+@@ -32,6 +32,8 @@ public class CrashReport {
+     private boolean trackingStackTrace = true;
+     private StackTraceElement[] uncategorizedStackTrace = new StackTraceElement[0];
+     private final SystemReport systemReport = new SystemReport();
++    private List<String> extraInfo = List.of("", "DO NOT REPORT THIS TO PAPER/FOLIA! REPORT TO DEERFOLIA INSTEAD!", ""); // DeerFolia - Rebrand
++
+ 
+     public CrashReport(String message, Throwable cause) {
+         io.papermc.paper.util.StacktraceDeobfuscator.INSTANCE.deobfuscateThrowable(cause); // Paper
+@@ -144,7 +146,7 @@ public class CrashReport {
+     }
+ 
+     public String getFriendlyReport(ReportType type) {
+-        return this.getFriendlyReport(type, List.of());
++        return this.getFriendlyReport(type, extraInfo); // DeerFolia - Rebrand
+     }
+ 
+     @Nullable
+@@ -191,7 +193,7 @@ public class CrashReport {
+     }
+ 
+     public boolean saveToFile(Path path, ReportType type) {
+-        return this.saveToFile(path, type, List.of());
++        return this.saveToFile(path, type, extraInfo);  // DeerFolia - Rebrand
+     }
+ 
+     public SystemReport getSystemReport() {
+diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+index e40665cead218502b44dd49051a53326ed94f061..cf0eb91b9fd76e6d21544042973f69a9b5810e0b 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
++++ b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+@@ -289,7 +289,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+ 
+     // Paper start
+     private static void printOversizedLog(String msg, Path file, int x, int z) {
+-        org.apache.logging.log4j.LogManager.getLogger().fatal(msg + " (" + file.toString().replaceAll(".+[\\\\/]", "") + " - " + x + "," + z + ") Go clean it up to remove this message. /minecraft:tp " + (x<<4)+" 128 "+(z<<4) + " - DO NOT REPORT THIS TO PAPER - You may ask for help on Discord, but do not file an issue. These error messages can not be removed.");
++        org.apache.logging.log4j.LogManager.getLogger().fatal(msg + " (" + file.toString().replaceAll(".+[\\\\/]", "") + " - " + x + "," + z + ") Go clean it up to remove this message. /minecraft:tp " + (x<<4)+" 128 "+(z<<4) + " - DO NOT REPORT THIS TO DEERFOLIA - You may ask for help on Discord, but do not file an issue. These error messages can not be removed."); // DeerFolia - Rebrand
+     }
+ 
+     private static CompoundTag readOversizedChunk(RegionFile regionfile, ChunkPos chunkCoordinate) throws IOException {
+diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
+index fad85bea8643a3a88ec5c4194de7a5060e81c136..03858588a5da20ecd5bb824c39f4cea68c25ae4c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
++++ b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
+@@ -491,7 +491,7 @@ public class CraftScheduler implements BukkitScheduler {
+                 this.parsePending();
+             } else {
+                 // this.debugTail = this.debugTail.setNext(new CraftAsyncDebugger(this.currentTick + CraftScheduler.RECENT_TICKS, task.getOwner(), task.getTaskClass())); // Paper
+-                task.getOwner().getLogger().log(Level.SEVERE, "Unexpected Async Task in the Sync Scheduler. Report this to Paper"); // Paper
++                task.getOwner().getLogger().log(Level.SEVERE, "Unexpected Async Task in the Sync Scheduler. Report this to DeerFolia"); // Paper // DeerFolia
+                 // We don't need to parse pending
+                 // (async tasks must live with race-conditions if they attempt to cancel between these few lines of code)
+             }
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
+index e9b6ca3aa25e140467ae866d572483050ea3fa0e..4b84eb8ceb719bb6b4dc281b32c5b67b45e78159 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
+@@ -11,7 +11,7 @@ public final class Versioning {
+     public static String getBukkitVersion() {
+         String result = "Unknown-Version";
+ 
+-        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/dev.folia/folia-api/pom.properties"); // Folia
++        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/cn.lunadeer/deer-folia-api/pom.properties"); // Folia // DeerFolia
+         Properties properties = new Properties();
+ 
+         if (stream != null) {
+diff --git a/src/main/java/org/spigotmc/WatchdogThread.java b/src/main/java/org/spigotmc/WatchdogThread.java
+index 64e0acf28fc241b16a7bc8d3807062fd7758ed7f..3eb75a0fbe82e6f5efc774149e3f965cc5b6b250 100644
+--- a/src/main/java/org/spigotmc/WatchdogThread.java
++++ b/src/main/java/org/spigotmc/WatchdogThread.java
+@@ -96,7 +96,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
+ 
+     private WatchdogThread(long timeoutTime, boolean restart)
+     {
+-        super( "Paper Watchdog Thread" );
++        super( "Watchdog Thread" ); // DeerFolia - Rebrand
+         this.timeoutTime = timeoutTime;
+         this.restart = restart;
+         earlyWarningEvery = Math.min(io.papermc.paper.configuration.GlobalConfiguration.get().watchdog.earlyWarningEvery, timeoutTime); // Paper
+@@ -155,14 +155,14 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
+                 if (isLongTimeout) {
+                 // Paper end
+                 log.log( Level.SEVERE, "------------------------------" );
+-                log.log( Level.SEVERE, "The server has stopped responding! This is (probably) not a Paper bug." ); // Paper
++                log.log( Level.SEVERE, "The server has stopped responding! This is (probably) not a DeerFolia bug." ); // Paper // DeerFolia
+                 log.log( Level.SEVERE, "If you see a plugin in the Server thread dump below, then please report it to that author" );
+                 log.log( Level.SEVERE, "\t *Especially* if it looks like HTTP or MySQL operations are occurring" );
+                 log.log( Level.SEVERE, "If you see a world save or edit, then it means you did far more than your server can handle at once" );
+                 log.log( Level.SEVERE, "\t If this is the case, consider increasing timeout-time in spigot.yml but note that this will replace the crash with LARGE lag spikes" );
+-                log.log( Level.SEVERE, "If you are unsure or still think this is a Paper bug, please report this to https://github.com/PaperMC/Paper/issues" );
++                log.log( Level.SEVERE, "If you are unsure or still think this is a DeerFolia bug, please report this to zhangyuheng@lunadeer.cn" ); // DeerFolia
+                 log.log( Level.SEVERE, "Be sure to include ALL relevant console errors and Minecraft crash reports" );
+-                log.log( Level.SEVERE, "Paper version: " + Bukkit.getServer().getVersion() );
++                log.log( Level.SEVERE, "DeerFolia version: " + Bukkit.getServer().getVersion() ); // DeerFolia
+                 //
+                 if ( net.minecraft.world.level.Level.lastPhysicsProblem != null )
+                 {
+@@ -184,12 +184,12 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
+                 // Paper end
+                 } else
+                 {
+-                    log.log(Level.SEVERE, "--- DO NOT REPORT THIS TO PAPER - THIS IS NOT A BUG OR A CRASH  - " + Bukkit.getServer().getVersion() + " ---");
++                    log.log(Level.SEVERE, "--- DO NOT REPORT THIS TO DEERFOLIA - THIS IS NOT A BUG OR A CRASH  - " + Bukkit.getServer().getVersion() + " ---"); // DeerFolia - Rebrand
+                     log.log(Level.SEVERE, "The server has not responded for " + (currentTime - lastTick) / 1000 + " seconds! Creating thread dump");
+                 }
+                 // Paper end - Different message for short timeout
+                 log.log( Level.SEVERE, "------------------------------" );
+-                log.log( Level.SEVERE, "Server thread dump (Look for plugins here before reporting to Paper!):" ); // Paper
++                log.log( Level.SEVERE, "Server thread dump (Look for plugins here before reporting to DeerFolia!):" ); // Paper // DeerFolia - Rebrand
+                 ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler.dumpAllChunkLoadInfo(MinecraftServer.getServer(), isLongTimeout); // Paper - rewrite chunk system
+                 this.dumpTickingInfo(); // Paper - log detailed tick information
+                 WatchdogThread.dumpThread( ManagementFactory.getThreadMXBean().getThreadInfo( MinecraftServer.getServer().serverThread.getId(), Integer.MAX_VALUE ), log );
+@@ -205,7 +205,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
+                     WatchdogThread.dumpThread( thread, log );
+                 }
+                 } else {
+-                    log.log(Level.SEVERE, "--- DO NOT REPORT THIS TO PAPER - THIS IS NOT A BUG OR A CRASH ---");
++                    log.log(Level.SEVERE, "--- DO NOT REPORT THIS TO DEERFOLIA - THIS IS NOT A BUG OR A CRASH ---"); // DeerFolia
+                 }
+ 
+                 log.log( Level.SEVERE, "------------------------------" );

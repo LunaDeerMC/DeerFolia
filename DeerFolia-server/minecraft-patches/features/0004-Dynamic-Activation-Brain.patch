@@ -1,0 +1,374 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Tue, 11 Mar 2025 14:31:10 +0800
+Subject: [PATCH] Dynamic Activation Brain
+
+
+diff --git a/io/papermc/paper/entity/activation/ActivationRange.java b/io/papermc/paper/entity/activation/ActivationRange.java
+index c260741a87513b89a5cc62c543fb9f990f86491e..c76385656d13e0436219cc51c880164bed0eb875 100644
+--- a/io/papermc/paper/entity/activation/ActivationRange.java
++++ b/io/papermc/paper/entity/activation/ActivationRange.java
+@@ -168,6 +168,24 @@ public final class ActivationRange {
+                 }
+ 
+                 ActivationRange.activateEntity(entity, bbByType); // Folia - threaded regions
++                // DeerFolia start - pufferfish DAB
++                if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.enabled && entity.getType().dabEnabled) {
++                    if (!entity.activatedPriorityReset) {
++                        entity.activatedPriorityReset = true;
++                        entity.activatedPriority = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.maximumActivationPrio;
++                    }
++                    net.minecraft.world.phys.Vec3 playerVec = player.position();
++                    net.minecraft.world.phys.Vec3 entityVec = entity.position();
++                    double diffX = playerVec.x - entityVec.x, diffY = playerVec.y - entityVec.y, diffZ = playerVec.z - entityVec.z;
++                    int squaredDistance = (int) (diffX * diffX + diffY * diffY + diffZ * diffZ);
++                    int startDistance = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.startDistance;
++                    entity.activatedPriority = squaredDistance > startDistance * startDistance ?
++                            Math.max(1, Math.min(squaredDistance >> cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.activationDistanceMod, entity.activatedPriority)) :
++                            1;
++                } else {
++                    entity.activatedPriority = 1;
++                }
++                // DeerFolia end - pufferfish DAB
+             }
+         }
+     }
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index f2d2ddfd964bff914e41c0b4150fe1aad7866ebf..ea2bc406e73510d59425aa4c3c6bf980a1e05506 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -814,6 +814,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             regionizedWorldData // Folia - regionised ticking
+                 .forEachTickingEntity( // Folia - regionised ticking
+                     entity -> {
++                        entity.activatedPriorityReset = false; // DeerFolia - pufferfish DAB
+                         if (!entity.isRemoved()) {
+                             if (!tickRateManager.isEntityFrozen(entity)) {
+                                 profilerFiller.push("checkDespawn");
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 4af15049ec97af8ed60388d93b12c3afcb3ddfff..1b58f9d5b293151af88db249cd3a6bad75de43e9 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -343,6 +343,8 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+     public long activatedTick = Integer.MIN_VALUE;
+     public boolean isTemporarilyActive;
+     public long activatedImmunityTick = Integer.MIN_VALUE;
++    public boolean activatedPriorityReset = false; // DeerFolia - pufferfish DAB
++    public int activatedPriority = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.maximumActivationPrio; // DeerFolia - pufferfish DAB
+ 
+     public void inactiveTick() {
+     }
+diff --git a/net/minecraft/world/entity/EntityType.java b/net/minecraft/world/entity/EntityType.java
+index d9cc1d7e56c37d5ce92544edc10e89dbc89dd15d..2a8b1e42104d0f67647058a2da4092fcf378eee5 100644
+--- a/net/minecraft/world/entity/EntityType.java
++++ b/net/minecraft/world/entity/EntityType.java
+@@ -1070,6 +1070,7 @@ public class EntityType<T extends Entity> implements FeatureElement, EntityTypeT
+     private final EntityDimensions dimensions;
+     private final float spawnDimensionsScale;
+     private final FeatureFlagSet requiredFeatures;
++    public boolean dabEnabled = false; // DeerFolia - pufferfish DAB
+ 
+     private static <T extends Entity> EntityType<T> register(ResourceKey<EntityType<?>> key, EntityType.Builder<T> builder) {
+         return Registry.register(BuiltInRegistries.ENTITY_TYPE, key, builder.build(key));
+diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
+index da922d4c0ffa0f40d5e8dd69487bf30dbbbeed87..7da1b749718d2eb2f53800c7bd4f74e895b3b906 100644
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -219,10 +219,10 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+     @Override
+     public void inactiveTick() {
+         super.inactiveTick();
+-        if (this.goalSelector.inactiveTick()) {
++        if (this.goalSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - pufferfish DAB
+             this.goalSelector.tick();
+         }
+-        if (this.targetSelector.inactiveTick()) {
++        if (this.targetSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - pufferfish DAB
+             this.targetSelector.tick();
+         }
+     }
+@@ -873,16 +873,20 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+         int i = this.tickCount + this.getId();
+         if (i % 2 != 0 && this.tickCount > 1) {
+             profilerFiller.push("targetSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
+             this.targetSelector.tickRunningGoals(false);
+             profilerFiller.pop();
+             profilerFiller.push("goalSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
+             this.goalSelector.tickRunningGoals(false);
+             profilerFiller.pop();
+         } else {
+             profilerFiller.push("targetSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
+             this.targetSelector.tick();
+             profilerFiller.pop();
+             profilerFiller.push("goalSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - pufferfish DAB
+             this.goalSelector.tick();
+             profilerFiller.pop();
+         }
+diff --git a/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java b/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java
+index f6c673b1abe53afcb14fd68d590431027ed29f67..f89479f49e576dddca78b154212d8ebd47f9c4fc 100644
+--- a/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java
++++ b/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java
+@@ -36,7 +36,12 @@ public class VillagerPanicTrigger extends Behavior<Villager> {
+ 
+     @Override
+     protected void tick(ServerLevel level, Villager owner, long gameTime) {
+-        if (gameTime % 100L == 0L) {
++        // DeerFolia start - pufferfish DAB
++        // if (time % 100L == 0L) {
++        if (owner.nextGolemPanic < 0) owner.nextGolemPanic = gameTime + 100;
++        if (--owner.nextGolemPanic < gameTime) {
++            owner.nextGolemPanic = -1;
++            // DeerFolia end - pufferfish DAB
+             owner.spawnGolemIfNeeded(level, gameTime, 3);
+         }
+     }
+diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+index a927c2790c8ab9ccaa7161b970e10b0b44817dd8..48ce2ccddb5572ae735d67ef1f9a0650ba5db2ef 100644
+--- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
++++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+@@ -38,10 +38,16 @@ public class GoalSelector {
+     }
+ 
+     // Paper start - EAR 2
+-    public boolean inactiveTick() {
++    // DeerFolia start - pufferfish DAB
++    // public boolean inactiveTick() {
++    public boolean inactiveTick(int tickRate, boolean inactive) {
++        if (inactive && !cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.dynamicActivationBrain.enabled) tickRate = 4; // reset to Paper's
++        tickRate = Math.min(tickRate, 3);
+         this.curRate++;
+-        return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
++        // return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
++        return this.curRate % tickRate == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
+     }
++    // DeerFolia end
+ 
+     public boolean hasTasks() {
+         for (WrappedGoal task : this.availableGoals) {
+diff --git a/net/minecraft/world/entity/animal/allay/Allay.java b/net/minecraft/world/entity/animal/allay/Allay.java
+index aafb32295d4ce239609bb62e6bdf2261739f7aa0..771a9071df84a438d59718d0bf29f10e8e0a6afa 100644
+--- a/net/minecraft/world/entity/animal/allay/Allay.java
++++ b/net/minecraft/world/entity/animal/allay/Allay.java
+@@ -243,10 +243,12 @@ public class Allay extends PathfinderMob implements InventoryCarrier, VibrationS
+         return 0.4F;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("allayBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("allayActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/armadillo/Armadillo.java b/net/minecraft/world/entity/animal/armadillo/Armadillo.java
+index dfdbcb31458095a71c187efc2774ecc4945dd11b..c406c9b5b04f8f131abb60656f8b89976fe4d7c0 100644
+--- a/net/minecraft/world/entity/animal/armadillo/Armadillo.java
++++ b/net/minecraft/world/entity/animal/armadillo/Armadillo.java
+@@ -131,10 +131,12 @@ public class Armadillo extends Animal {
+         return ArmadilloAi.makeBrain(this.brainProvider().makeBrain(dynamic));
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("armadilloBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         ((Brain<Armadillo>)this.brain).tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("armadilloActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/axolotl/Axolotl.java b/net/minecraft/world/entity/animal/axolotl/Axolotl.java
+index 9faa929734035c167e54569ce34d841291856589..1d56985f7714da1dde9e14936e2afcd699dcce8e 100644
+--- a/net/minecraft/world/entity/animal/axolotl/Axolotl.java
++++ b/net/minecraft/world/entity/animal/axolotl/Axolotl.java
+@@ -300,10 +300,12 @@ public class Axolotl extends Animal implements VariantHolder<Axolotl.Variant>, B
+         return true;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("axolotlBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("axolotlActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/camel/Camel.java b/net/minecraft/world/entity/animal/camel/Camel.java
+index 3ac169f83c5619b5c00c866354a2e066a0a738cc..27ad211cee61612a5ee834a064ae1dab3aa92c44 100644
+--- a/net/minecraft/world/entity/animal/camel/Camel.java
++++ b/net/minecraft/world/entity/animal/camel/Camel.java
+@@ -143,11 +143,13 @@ public class Camel extends AbstractHorse {
+         return pose == Pose.SITTING ? SITTING_DIMENSIONS.scale(this.getAgeScale()) : super.getDefaultDimensions(pose);
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("camelBrain");
+         Brain<?> brain = this.getBrain();
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         ((Brain<Camel>)brain).tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("camelActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/frog/Frog.java b/net/minecraft/world/entity/animal/frog/Frog.java
+index 12c655b60087a2f6122ffa508b3224159d8777b0..0b6301eeb802297f0136cef4b4806d98e5c4f1d2 100644
+--- a/net/minecraft/world/entity/animal/frog/Frog.java
++++ b/net/minecraft/world/entity/animal/frog/Frog.java
+@@ -184,10 +184,12 @@ public class Frog extends Animal implements VariantHolder<Holder<FrogVariant>> {
+             .ifPresent(this::setVariant);
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("frogBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("frogActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/frog/Tadpole.java b/net/minecraft/world/entity/animal/frog/Tadpole.java
+index 97adf8142cdd322c4873c420ed760e9dee34da23..f14392dbea182e57330724ab911994684f7121e5 100644
+--- a/net/minecraft/world/entity/animal/frog/Tadpole.java
++++ b/net/minecraft/world/entity/animal/frog/Tadpole.java
+@@ -95,10 +95,12 @@ public class Tadpole extends AbstractFish {
+         return SoundEvents.TADPOLE_FLOP;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("tadpoleBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("tadpoleActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/goat/Goat.java b/net/minecraft/world/entity/animal/goat/Goat.java
+index c91e1f8e5fd39bcc48f9f0bf002770b2dff74404..6e8e325b344a9f24ae2046771bb1e1b1f22251cb 100644
+--- a/net/minecraft/world/entity/animal/goat/Goat.java
++++ b/net/minecraft/world/entity/animal/goat/Goat.java
+@@ -184,10 +184,12 @@ public class Goat extends Animal {
+         return (Brain<Goat>)super.getBrain();
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("goatBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         profilerFiller.push("goatActivityUpdate");
+diff --git a/net/minecraft/world/entity/animal/sniffer/Sniffer.java b/net/minecraft/world/entity/animal/sniffer/Sniffer.java
+index 62ca7871d1e5d0fe611948ad43e44c23fdc2d3f8..1ab97a9af0b597ff353ce750149b03115fdad9f5 100644
+--- a/net/minecraft/world/entity/animal/sniffer/Sniffer.java
++++ b/net/minecraft/world/entity/animal/sniffer/Sniffer.java
+@@ -452,10 +452,12 @@ public class Sniffer extends Animal {
+         return Brain.provider(SnifferAi.MEMORY_TYPES, SnifferAi.SENSOR_TYPES);
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("snifferBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.popPush("snifferActivityUpdate");
+         SnifferAi.updateActivity(this);
+diff --git a/net/minecraft/world/entity/monster/hoglin/Hoglin.java b/net/minecraft/world/entity/monster/hoglin/Hoglin.java
+index 0ddc0fe06a1b701f88ed8f8041ecd68f7da6c86d..b2a45601d4b28d1225dfb42535760747a829923b 100644
+--- a/net/minecraft/world/entity/monster/hoglin/Hoglin.java
++++ b/net/minecraft/world/entity/monster/hoglin/Hoglin.java
+@@ -156,10 +156,12 @@ public class Hoglin extends Animal implements Enemy, HoglinBase {
+         return (Brain<Hoglin>)super.getBrain();
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("hoglinBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         HoglinAi.updateActivity(this);
+diff --git a/net/minecraft/world/entity/monster/piglin/Piglin.java b/net/minecraft/world/entity/monster/piglin/Piglin.java
+index 0257eada48b35ea024520afe30596beae8a7ef1e..5b6e7c0a7df340012756d0b13360d528e36b9f6c 100644
+--- a/net/minecraft/world/entity/monster/piglin/Piglin.java
++++ b/net/minecraft/world/entity/monster/piglin/Piglin.java
+@@ -342,10 +342,12 @@ public class Piglin extends AbstractPiglin implements CrossbowAttackMob, Invento
+         return !this.cannotHunt;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("piglinBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         PiglinAi.updateActivity(this);
+diff --git a/net/minecraft/world/entity/monster/warden/Warden.java b/net/minecraft/world/entity/monster/warden/Warden.java
+index 9f476e587d7df797129e49738f101cccca7e10b7..71db946a4aad45fae416c688b2a412be3d71d400 100644
+--- a/net/minecraft/world/entity/monster/warden/Warden.java
++++ b/net/minecraft/world/entity/monster/warden/Warden.java
+@@ -282,10 +282,12 @@ public class Warden extends Monster implements VibrationSystem {
+         }
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("wardenBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - pufferfish DAB
+         this.getBrain().tick(level, this);
+         profilerFiller.pop();
+         super.customServerAiStep(level);
+diff --git a/net/minecraft/world/entity/npc/Villager.java b/net/minecraft/world/entity/npc/Villager.java
+index 7ea74aeb905b95e5919d74df5fbc5e8f7a9985e3..7524daafef8db054c64ed8a0759686a269789f92 100644
+--- a/net/minecraft/world/entity/npc/Villager.java
++++ b/net/minecraft/world/entity/npc/Villager.java
+@@ -180,6 +180,8 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         (villager, holder) -> holder.is(PoiTypes.MEETING)
+     );
+ 
++    public long nextGolemPanic = -1; // DeerFolia - pufferfish DAB
++
+     public Villager(EntityType<? extends Villager> entityType, Level level) {
+         this(entityType, level, VillagerType.PLAINS);
+     }
+@@ -284,6 +286,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     }
+     // Paper end - EAR 2
+ 
++    private int behaviorTick = 0; // DeerFolia - pufferfish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel level) {
+         // Paper start - EAR 2
+@@ -293,7 +296,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         // Paper end - EAR 2
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("villagerBrain");
+-        if (!inactive) this.getBrain().tick(level, this); // Paper - EAR 2
++        // DeerFolia start - pufferfish DAB
++        // if (!inactive) this.getBrain().tick(level, this); // Paper - EAR 2
++        if (!inactive && this.behaviorTick++ % this.activatedPriority == 0) {
++            this.getBrain().tick((ServerLevel) this.level(), this); // Paper
++        }
++        // DeerFolia end - pufferfish DAB
+         profilerFiller.pop();
+         if (this.assignProfessionWhenSpawned) {
+             this.assignProfessionWhenSpawned = false;

@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Tue, 11 Mar 2025 11:40:51 +0800
+Subject: [PATCH] Rebranding
+
+
+diff --git a/net/minecraft/CrashReport.java b/net/minecraft/CrashReport.java
+index 3e0e88afcf010d9a3d46e48bca5cbdf98fe97544..a86cd46f9af4853f5959c9ef71facb3544e436f9 100644
+--- a/net/minecraft/CrashReport.java
++++ b/net/minecraft/CrashReport.java
+@@ -30,6 +30,7 @@ public class CrashReport {
+     private boolean trackingStackTrace = true;
+     private StackTraceElement[] uncategorizedStackTrace = new StackTraceElement[0];
+     private final SystemReport systemReport = new SystemReport();
++    private final List<String> extraInfo = List.of("", "DO NOT REPORT THIS TO PAPER/FOLIA! REPORT TO DEERFOLIA INSTEAD!", ""); // DeerFolia - Rebrand
+ 
+     public CrashReport(String title, Throwable exception) {
+         io.papermc.paper.util.StacktraceDeobfuscator.INSTANCE.deobfuscateThrowable(exception); // Paper
+@@ -130,7 +131,7 @@ public class CrashReport {
+     }
+ 
+     public String getFriendlyReport(ReportType type) {
+-        return this.getFriendlyReport(type, List.of());
++        return this.getFriendlyReport(type, extraInfo); // DeerFolia - Rebrand
+     }
+ 
+     @Nullable
+@@ -161,7 +162,7 @@ public class CrashReport {
+     }
+ 
+     public boolean saveToFile(Path path, ReportType type) {
+-        return this.saveToFile(path, type, List.of());
++        return this.saveToFile(path, type, extraInfo);  // DeerFolia - Rebrand
+     }
+ 
+     public SystemReport getSystemReport() {
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+index dad7f94b611cf0fc68b1a3878c458233f6bb6d61..9afd049f1e98ef04fa63088127bec01ef50b6c43 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+@@ -283,7 +283,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+ 
+     // Paper start
+     private static void printOversizedLog(String msg, Path file, int x, int z) {
+-        org.apache.logging.log4j.LogManager.getLogger().fatal(msg + " (" + file.toString().replaceAll(".+[\\\\/]", "") + " - " + x + "," + z + ") Go clean it up to remove this message. /minecraft:tp " + (x<<4)+" 128 "+(z<<4) + " - DO NOT REPORT THIS TO PAPER - You may ask for help on Discord, but do not file an issue. These error messages can not be removed.");
++        org.apache.logging.log4j.LogManager.getLogger().fatal(msg + " (" + file.toString().replaceAll(".+[\\\\/]", "") + " - " + x + "," + z + ") Go clean it up to remove this message. /minecraft:tp " + (x<<4)+" 128 "+(z<<4) + " - DO NOT REPORT THIS TO DEERFOLIA - You may ask for help on Discord, but do not file an issue. These error messages can not be removed."); // DeerFolia - Rebrand
+     }
+ 
+     private static CompoundTag readOversizedChunk(RegionFile regionfile, ChunkPos chunkCoordinate) throws IOException {

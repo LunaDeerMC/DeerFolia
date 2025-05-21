@@ -1,0 +1,370 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Fri, 6 Dec 2024 00:02:28 +0800
+Subject: [PATCH] Dynamic Activation Brain
+
+
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 4ed27c10b432ceebf4447ab8007bc3a1be09a06e..44cd9a9467441035a26bba3f48c4ca7c21b181a7 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -368,4 +368,14 @@ public class GlobalConfiguration extends ConfigurationPart {
+         }
+     }
+     // Folia end - threaded regions
++
++    // DeerFolia start - puffish DAB (Dynamic Activation Brain)
++    public DynamicActivationBrain dynamicActivationBrain;
++    public class DynamicActivationBrain extends ConfigurationPart {
++        public boolean dearEnabled = true;
++        public int startDistance = 12;
++        public int maximumActivationPrio = 20;
++        public int activationDistanceMod = 8;
++    }
++    // DeerFolia end - puffish DAB
+ }
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 6ddbf123eb06e481fda87b621534cf5b2137f0f2..dd082229682801fad556161e93f6a556c611e145 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -815,6 +815,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
+             profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); try { // Folia - profiler
+             regionizedWorldData.forEachTickingEntity((entity) -> { // Folia - regionised ticking
++                entity.activatedPriorityReset = false; // DeerFolia - puffish DAB
+                 if (!entity.isRemoved()) {
+                     if (!tickratemanager.isEntityFrozen(entity)) {
+                         gameprofilerfiller.push("checkDespawn");
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index db6d3e4489832c60f0293e23c77c42adb37f5754..402f7c8e62ed8a0d93d59b8f0a53c3686b46d23f 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+ import com.google.common.collect.UnmodifiableIterator;
+ import com.mojang.logging.LogUtils;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import it.unimi.dsi.fastutil.doubles.DoubleList;
+ import it.unimi.dsi.fastutil.doubles.DoubleListIterator;
+ import it.unimi.dsi.fastutil.floats.FloatArraySet;
+@@ -389,6 +390,8 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+     public boolean freezeLocked = false; // Paper - Freeze Tick Lock API
+     public boolean fixedPose = false; // Paper - Expand Pose API
+     private final int despawnTime; // Paper - entity despawn time limit
++    public boolean activatedPriorityReset = false; // DeerFolia - puffish DAB
++    public int activatedPriority = GlobalConfiguration.get().dynamicActivationBrain.maximumActivationPrio; // DeerFolia - puffish DAB
+ 
+     public void setOrigin(@javax.annotation.Nonnull Location location) {
+         this.origin = location.toVector();
+diff --git a/src/main/java/net/minecraft/world/entity/EntityType.java b/src/main/java/net/minecraft/world/entity/EntityType.java
+index 635c9c7a8c8307c2bc845a8e1f24aacb526a3c92..8ba58332020bd2aa35eca7f688392c3f651917b1 100644
+--- a/src/main/java/net/minecraft/world/entity/EntityType.java
++++ b/src/main/java/net/minecraft/world/entity/EntityType.java
+@@ -385,6 +385,7 @@ public class EntityType<T extends Entity> implements FeatureElement, EntityTypeT
+     private final int clientTrackingRange;
+     private final int updateInterval;
+     private final String descriptionId;
++    public boolean dabEnabled = false; // DeerFolia - puffish DAB
+     @Nullable
+     private Component description;
+     private final Optional<ResourceKey<LootTable>> lootTable;
+diff --git a/src/main/java/net/minecraft/world/entity/Mob.java b/src/main/java/net/minecraft/world/entity/Mob.java
+index e48728723e9f765099fc1cea8e6a2baa48d7fc75..89d5e5ced79ce7369edf62ff1d9ef929a750e3ab 100644
+--- a/src/main/java/net/minecraft/world/entity/Mob.java
++++ b/src/main/java/net/minecraft/world/entity/Mob.java
+@@ -235,10 +235,10 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+     @Override
+     public void inactiveTick() {
+         super.inactiveTick();
+-        if (this.goalSelector.inactiveTick()) {
++        if (this.goalSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - puffish DAB
+             this.goalSelector.tick();
+         }
+-        if (this.targetSelector.inactiveTick()) {
++        if (this.targetSelector.inactiveTick(this.activatedPriority, true)) { // DeerFolia - puffish DAB
+             this.targetSelector.tick();
+         }
+     }
+@@ -939,16 +939,20 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+ 
+         if (i % 2 != 0 && this.tickCount > 1) {
+             gameprofilerfiller.push("targetSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
+             this.targetSelector.tickRunningGoals(false);
+             gameprofilerfiller.pop();
+             gameprofilerfiller.push("goalSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
+             this.goalSelector.tickRunningGoals(false);
+             gameprofilerfiller.pop();
+         } else {
+             gameprofilerfiller.push("targetSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
+             this.targetSelector.tick();
+             gameprofilerfiller.pop();
+             gameprofilerfiller.push("goalSelector");
++            if (this.targetSelector.inactiveTick(this.activatedPriority, false)) // DeerFolia - puffish DAB
+             this.goalSelector.tick();
+             gameprofilerfiller.pop();
+         }
+diff --git a/src/main/java/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java b/src/main/java/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java
+index 758f62416ca9c02351348ac0d41deeb4624abc0e..65139a44567bc50cffaf04a0416ce6b4d61219f7 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java
++++ b/src/main/java/net/minecraft/world/entity/ai/behavior/VillagerPanicTrigger.java
+@@ -36,7 +36,11 @@ public class VillagerPanicTrigger extends Behavior<Villager> {
+ 
+     @Override
+     protected void tick(ServerLevel world, Villager entity, long time) {
+-        if (time % 100L == 0L) {
++        // DeerFolia start - puffish DAB
++        if (entity.nextGolemPanic < 0) entity.nextGolemPanic = time + 100;
++        if (--entity.nextGolemPanic < time) {
++            entity.nextGolemPanic = -1;
++            // DeerFolia end - puffish DAB
+             entity.spawnGolemIfNeeded(world, time, 3);
+         }
+     }
+diff --git a/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java b/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java
+index 29ae74339a4831ccef3d01e8054931715ba192ad..802ae2e01c3e26d86cebf279bdb847c46e422b6c 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java
++++ b/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.world.entity.ai.goal;
+ 
+ import com.google.common.annotations.VisibleForTesting;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+ import java.util.EnumMap;
+ import java.util.EnumSet;
+@@ -38,10 +39,16 @@ public class GoalSelector {
+     }
+ 
+     // Paper start - EAR 2
+-    public boolean inactiveTick() {
++    // DeerFolia start - puffish DAB
++    // public boolean inactiveTick() {
++    public boolean inactiveTick(int tickRate, boolean inactive) {
++        if (inactive && !GlobalConfiguration.get().dynamicActivationBrain.dearEnabled) tickRate = 4; // reset to Paper's
++        tickRate = Math.min(tickRate, 3);
+         this.curRate++;
+-        return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
++        // return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
++        return this.curRate % tickRate == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
+     }
++    // DeerFolia end
+     public boolean hasTasks() {
+         for (WrappedGoal task : this.availableGoals) {
+             if (task.isRunning()) {
+diff --git a/src/main/java/net/minecraft/world/entity/animal/allay/Allay.java b/src/main/java/net/minecraft/world/entity/animal/allay/Allay.java
+index b86f638390d386c838318a4d9b6571ac5514df8f..d74173ab9b17a8e1ce85a443a0a63538f049255a 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/allay/Allay.java
++++ b/src/main/java/net/minecraft/world/entity/animal/allay/Allay.java
+@@ -223,11 +223,13 @@ public class Allay extends PathfinderMob implements InventoryCarrier, VibrationS
+         return 0.4F;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("allayBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         gameprofilerfiller.push("allayActivityUpdate");
+diff --git a/src/main/java/net/minecraft/world/entity/animal/axolotl/Axolotl.java b/src/main/java/net/minecraft/world/entity/animal/axolotl/Axolotl.java
+index 31b10cd404b672d7ce21c2107d8f83e32de26ef4..9774e36d0c212e9bc9ac5cf0d0c1f6939bda6a75 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/axolotl/Axolotl.java
++++ b/src/main/java/net/minecraft/world/entity/animal/axolotl/Axolotl.java
+@@ -292,11 +292,13 @@ public class Axolotl extends Animal implements VariantHolder<Axolotl.Variant>, B
+         return true;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("axolotlBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         gameprofilerfiller.push("axolotlActivityUpdate");
+diff --git a/src/main/java/net/minecraft/world/entity/animal/frog/Frog.java b/src/main/java/net/minecraft/world/entity/animal/frog/Frog.java
+index ca04e5d829331551a2c2f44e223ff05c6ce04e76..f16a6f29813365cb530b2b4ef3471ebd20aa5e1c 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/frog/Frog.java
++++ b/src/main/java/net/minecraft/world/entity/animal/frog/Frog.java
+@@ -184,10 +184,12 @@ public class Frog extends Animal implements VariantHolder<Holder<FrogVariant>> {
+             .ifPresent(this::setVariant);
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller profilerFiller = Profiler.get();
+         profilerFiller.push("frogBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         profilerFiller.pop();
+         profilerFiller.push("frogActivityUpdate");
+diff --git a/src/main/java/net/minecraft/world/entity/animal/frog/Tadpole.java b/src/main/java/net/minecraft/world/entity/animal/frog/Tadpole.java
+index 48ac8c3f6e00c3c2dc67b6c994be7c0ac6dfcf81..effdc51327576e959760966e6b726def893f3208 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/frog/Tadpole.java
++++ b/src/main/java/net/minecraft/world/entity/animal/frog/Tadpole.java
+@@ -83,11 +83,13 @@ public class Tadpole extends AbstractFish {
+         return SoundEvents.TADPOLE_FLOP;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("tadpoleBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         gameprofilerfiller.push("tadpoleActivityUpdate");
+diff --git a/src/main/java/net/minecraft/world/entity/animal/goat/Goat.java b/src/main/java/net/minecraft/world/entity/animal/goat/Goat.java
+index 76aca47d8638d5c37c57d3a59fa7f8ceaa5a53b4..b3a66b2686abc09d41e333e4d43c9493258839e6 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/goat/Goat.java
++++ b/src/main/java/net/minecraft/world/entity/animal/goat/Goat.java
+@@ -192,11 +192,13 @@ public class Goat extends Animal {
+         return (Brain<Goat>) super.getBrain(); // CraftBukkit - decompile error
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("goatBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         gameprofilerfiller.push("goatActivityUpdate");
+diff --git a/src/main/java/net/minecraft/world/entity/monster/hoglin/Hoglin.java b/src/main/java/net/minecraft/world/entity/monster/hoglin/Hoglin.java
+index 92270912ef26924f611a1df7cb3d5b485b0a262d..fee4535bc3ee385e5309cb4abf9966692f30f4ae 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/hoglin/Hoglin.java
++++ b/src/main/java/net/minecraft/world/entity/monster/hoglin/Hoglin.java
+@@ -138,11 +138,13 @@ public class Hoglin extends Animal implements Enemy, HoglinBase {
+         return (Brain<Hoglin>) super.getBrain(); // CraftBukkit - decompile error
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("hoglinBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         HoglinAi.updateActivity(this);
+diff --git a/src/main/java/net/minecraft/world/entity/monster/piglin/Piglin.java b/src/main/java/net/minecraft/world/entity/monster/piglin/Piglin.java
+index 2121d2a2e1aa1d0f0390cc515317096431f6dcb0..4b2181889d041a0b39f3590210e01686637fd7d7 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/piglin/Piglin.java
++++ b/src/main/java/net/minecraft/world/entity/monster/piglin/Piglin.java
+@@ -307,11 +307,13 @@ public class Piglin extends AbstractPiglin implements CrossbowAttackMob, Invento
+         return !this.cannotHunt;
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("piglinBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         PiglinAi.updateActivity(this);
+diff --git a/src/main/java/net/minecraft/world/entity/monster/warden/Warden.java b/src/main/java/net/minecraft/world/entity/monster/warden/Warden.java
+index c47ed605f0822effd58df4f875297ed015e1e57e..ba9dd96a1d0547e728f2b6d7ddaaff9093a9bce0 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/warden/Warden.java
++++ b/src/main/java/net/minecraft/world/entity/monster/warden/Warden.java
+@@ -275,11 +275,13 @@ public class Warden extends Monster implements VibrationSystem {
+ 
+     }
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("wardenBrain");
++        if (this.behaviorTick++ % this.activatedPriority == 0) // DeerFolia - puffish DAB
+         this.getBrain().tick(world, this);
+         gameprofilerfiller.pop();
+         super.customServerAiStep(world);
+diff --git a/src/main/java/net/minecraft/world/entity/npc/Villager.java b/src/main/java/net/minecraft/world/entity/npc/Villager.java
+index 07f50048e9748b28178847ad470b8b2ce37e0eea..0c95a80d278b4abe9a84088941e39ef030f7427c 100644
+--- a/src/main/java/net/minecraft/world/entity/npc/Villager.java
++++ b/src/main/java/net/minecraft/world/entity/npc/Villager.java
+@@ -142,6 +142,8 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         return holder.is(PoiTypes.MEETING);
+     });
+ 
++    public long nextGolemPanic = -1; // DeerFolia - puffish DAB
++
+     public Villager(EntityType<? extends Villager> entityType, Level world) {
+         this(entityType, world, VillagerType.PLAINS);
+     }
+@@ -245,6 +247,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     }
+     // Spigot End
+ 
++    private int behaviorTick = 0; // DeerFolia - puffish DAB
+     @Override
+     protected void customServerAiStep(ServerLevel world) {
+         // Paper start - EAR 2
+@@ -255,7 +258,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         ProfilerFiller gameprofilerfiller = Profiler.get();
+ 
+         gameprofilerfiller.push("villagerBrain");
+-        if (!inactive) this.getBrain().tick(world, this);
++        // DeerFolia start - puffish DAB
++        // if (!inactive) this.getBrain().tick(world, this);
++        if (!inactive && this.behaviorTick++ % this.activatedPriority == 0) {
++            this.getBrain().tick((ServerLevel) this.level(), this); // Paper
++        }
++        // DeerFolia end - puffish DAB
+         gameprofilerfiller.pop();
+         if (this.assignProfessionWhenSpawned) {
+             this.assignProfessionWhenSpawned = false;
+diff --git a/src/main/java/org/spigotmc/ActivationRange.java b/src/main/java/org/spigotmc/ActivationRange.java
+index f2f5eb1a443ac411539e1c87eec60e76682b82fa..56be9e6822827310c05a8593db8ef4985d369ce9 100644
+--- a/src/main/java/org/spigotmc/ActivationRange.java
++++ b/src/main/java/org/spigotmc/ActivationRange.java
+@@ -1,5 +1,6 @@
+ package org.spigotmc;
+ 
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerChunkCache;
+@@ -230,6 +231,24 @@ public class ActivationRange
+                 }
+                 // Paper end - Configurable marker ticking
+                 ActivationRange.activateEntity(entity, bbByType); // Folia - threaded regions
++                // DeerFolia start - puffish DAB
++                if (GlobalConfiguration.get().dynamicActivationBrain.dearEnabled && entity.getType().dabEnabled) {
++                    if (!entity.activatedPriorityReset) {
++                        entity.activatedPriorityReset = true;
++                        entity.activatedPriority = GlobalConfiguration.get().dynamicActivationBrain.maximumActivationPrio;
++                    }
++                    net.minecraft.world.phys.Vec3 playerVec = player.position();
++                    net.minecraft.world.phys.Vec3 entityVec = entity.position();
++                    double diffX = playerVec.x - entityVec.x, diffY = playerVec.y - entityVec.y, diffZ = playerVec.z - entityVec.z;
++                    int squaredDistance = (int) (diffX * diffX + diffY * diffY + diffZ * diffZ);
++                    int startDistance = GlobalConfiguration.get().dynamicActivationBrain.startDistance;
++                    entity.activatedPriority = squaredDistance > startDistance * startDistance ?
++                            Math.max(1, Math.min(squaredDistance >> GlobalConfiguration.get().dynamicActivationBrain.activationDistanceMod, entity.activatedPriority)) :
++                            1;
++                } else {
++                    entity.activatedPriority = 1;
++                }
++                // DeerFolia end - puffish DAB
+             }
+             // Paper end
+         }

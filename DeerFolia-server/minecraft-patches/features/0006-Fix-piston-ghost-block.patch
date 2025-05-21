@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Wed, 12 Mar 2025 14:53:26 +0800
+Subject: [PATCH] Fix piston ghost block
+
+
+diff --git a/net/minecraft/world/item/context/BlockPlaceContext.java b/net/minecraft/world/item/context/BlockPlaceContext.java
+index df2784b7a100beb7448a20264de6e617579a39f8..857f818bbd9b76d18b734a9f736af2b214e366e7 100644
+--- a/net/minecraft/world/item/context/BlockPlaceContext.java
++++ b/net/minecraft/world/item/context/BlockPlaceContext.java
+@@ -51,6 +51,15 @@ public class BlockPlaceContext extends UseOnContext {
+     }
+ 
+     public boolean canPlace() {
++        // Deer Folia start - made ghost block caused by preview paper bug placeable
++        if (this.getLevel().getBlockState(this.getClickedPos()).getBukkitMaterial() == org.bukkit.Material.MOVING_PISTON &&
++                this.getLevel().getBlockEntity(this.getClickedPos()) == null) {
++            org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.WARNING,
++                    "Replacing a moving piston ghost block at " + this.getClickedPos() +
++                            " caused by upstream paper bug (paper commit hash 4519857).");
++            return true;
++        }
++        // Deer Folia end
+         return this.replaceClicked || this.getLevel().getBlockState(this.getClickedPos()).canBeReplaced(this);
+     }
+ 
