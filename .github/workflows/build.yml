@@ -31,7 +31,7 @@ jobs:
       - name: "Build Mojmap"
         run: ./gradlew createMojmapPaperclipJar
       - name: "Copy jar to staging"
-        run: mkdir staging && cp deer-folia-server/build/libs/deer-folia-paperclip-*-mojmap.jar staging/
+        run: mkdir staging && cp DeerFolia-server/build/libs/DeerFolia-paperclip-*-mojmap.jar staging/
       - name: "Rename file to DeerFolia-{git tag name}.jar"
         run: |
           GIT_TAG=$(git describe --tags --abbrev=0)
