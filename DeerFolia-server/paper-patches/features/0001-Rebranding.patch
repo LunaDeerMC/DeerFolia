@@ -31,7 +31,7 @@ index 29bd788ae8bc61c1e62a4f84b9e259931a7041ce..8f2268a4027d49f6ea304490e2a0b3f6
      private static final int DISTANCE_UNKNOWN = -2;
 -    private static final String DOWNLOAD_PAGE = "https://papermc.io/downloads/paper";
 -
-+    private static final String DOWNLOAD_PAGE = "https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/releases";     // DeerFolia
++    private static final String DOWNLOAD_PAGE = "https://github.com/LunaDeerMC/DeerFolia/releases/latest";     // DeerFolia
      @Override
      public long getCacheTime() {
          return 720000;
