@@ -5,7 +5,7 @@ Subject: [PATCH] Kaiiju Entity Throttling
 
 
 diff --git a/io/papermc/paper/threadedregions/RegionizedWorldData.java b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-index c6e487a4c14e6b82533881d01f32349b9ae28728..2c747cb8a724cd25c9d724908f92b320741600de 100644
+index 17bf9a4cf48273d5021d48ae57acc4fd053dd32d..0168c2a0e3ce16f107bbd83e1071004e61de32f8 100644
 --- a/io/papermc/paper/threadedregions/RegionizedWorldData.java
 +++ b/io/papermc/paper/threadedregions/RegionizedWorldData.java
 @@ -354,6 +354,7 @@ public final class RegionizedWorldData {
@@ -17,10 +17,10 @@ index c6e487a4c14e6b82533881d01f32349b9ae28728..2c747cb8a724cd25c9d724908f92b320
      // block ticking
      private final ObjectLinkedOpenHashSet<BlockEventData> blockEvents = new ObjectLinkedOpenHashSet<>();
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 56d63dfcb5029574a55d4973657ea1b60cdd4c9f..668568b7118827b88d236ae81aef6d34f15ae99e 100644
+index 7ccac5573800432c54091a7fa2249849b374c55d..496e83f102516700a4161e3ce293b38fc040b2db 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -807,6 +807,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -801,6 +801,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                  } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.DRAGON_FIGHT_TICK); } // Folia - profiler
              }
  
@@ -28,7 +28,7 @@ index 56d63dfcb5029574a55d4973657ea1b60cdd4c9f..668568b7118827b88d236ae81aef6d34
              profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); try { // Folia - profiler
              io.papermc.paper.entity.activation.ActivationRange.activateEntities(this); // Paper - EAR
              } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
-@@ -831,6 +832,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -825,6 +826,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                                          entity.stopRiding();
                                      }
  
@@ -42,7 +42,7 @@ index 56d63dfcb5029574a55d4973657ea1b60cdd4c9f..668568b7118827b88d236ae81aef6d34
                                      profilerFiller.push("tick");
                                      this.guardEntityTick(this::tickNonPassenger, entity);
                                      profilerFiller.pop();
-@@ -840,6 +848,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -834,6 +842,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                      }
                  );
              } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); } // Folia - profiler

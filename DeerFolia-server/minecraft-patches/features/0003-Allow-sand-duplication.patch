@@ -5,10 +5,10 @@ Subject: [PATCH] Allow sand duplication
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 2cd2ce1060f567be6c72b7bc9d02651ec7166203..4af15049ec97af8ed60388d93b12c3afcb3ddfff 100644
+index 8357e4a3f381014b976067d8ed06fc073d23db44..3f9ffc2d206c48ea9737e4879b5b26547b7bb4a6 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4245,14 +4245,19 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4230,14 +4230,19 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                          targetPos, 16, // load 16 blocks to be safe from block physics
                          ca.spottedleaf.concurrentutil.util.Priority.HIGH,
                          (chunks) -> {
@@ -31,7 +31,7 @@ index 2cd2ce1060f567be6c72b7bc9d02651ec7166203..4af15049ec97af8ed60388d93b12c3af
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET),
                                      org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL
                                  )
-@@ -4449,6 +4454,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4434,6 +4439,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
          if (!this.canPortalAsync(destination, takePassengers)) {
              return false;
          }
@@ -43,7 +43,7 @@ index 2cd2ce1060f567be6c72b7bc9d02651ec7166203..4af15049ec97af8ed60388d93b12c3af
  
          Vec3 initialPosition = this.position();
          ChunkPos initialPositionChunk = new ChunkPos(
-@@ -4513,9 +4523,14 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4498,9 +4508,14 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                          info.postTeleportTransition().onTransition(teleported);
                      }
  
@@ -61,11 +61,11 @@ index 2cd2ce1060f567be6c72b7bc9d02651ec7166203..4af15049ec97af8ed60388d93b12c3af
              );
          });
 diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
-index 1fa5e6a12b943e889bde566038a632a6adcf319e..6b8727c1b123e2ca85d97ea104ab6626d3a697e3 100644
+index e77276b1dccebd5b768c3cdbe5e0206da32b91ff..f02dc6e305f8f5247cd47534292cb24c82f74937 100644
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
-@@ -65,7 +65,7 @@ public class FallingBlockEntity extends Entity {
-     public float fallDamagePerDistance;
+@@ -67,7 +67,7 @@ public class FallingBlockEntity extends Entity {
+     public float fallDamagePerDistance = 0.0F;
      @Nullable
      public CompoundTag blockData;
 -    public boolean forceTickAfterTeleportToDuplicate;
@@ -74,10 +74,10 @@ index 1fa5e6a12b943e889bde566038a632a6adcf319e..6b8727c1b123e2ca85d97ea104ab6626
      public boolean autoExpire = true; // Paper - Expand FallingBlock API
  
 diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
-index 554d75ac1374d7d93977a10e06fcf51259830c97..a5285e9afea331e8a7526e5f3876f3ff8395915b 100644
+index 685c0fb071efd8e3c4e81cb89e93d8f7707773c1..096c400614df85fc6fecee68c28568183fd2b3a5 100644
 --- a/net/minecraft/world/level/block/EndPortalBlock.java
 +++ b/net/minecraft/world/level/block/EndPortalBlock.java
-@@ -67,6 +67,11 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+@@ -68,6 +68,11 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
                  if (level.paperConfig().misc.disableEndCredits) {serverPlayer.seenCredits = true; return;} // Paper - Option to disable end credits
                  serverPlayer.showEndCredits();
              } else {

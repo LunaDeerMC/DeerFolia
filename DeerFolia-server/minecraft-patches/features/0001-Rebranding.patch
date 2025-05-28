@@ -35,10 +35,10 @@ index 3e0e88afcf010d9a3d46e48bca5cbdf98fe97544..a86cd46f9af4853f5959c9ef71facb35
  
      public SystemReport getSystemReport() {
 diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-index dad7f94b611cf0fc68b1a3878c458233f6bb6d61..9afd049f1e98ef04fa63088127bec01ef50b6c43 100644
+index 384f2cd090d6d23bd1308d6e82c24338f2bf55d1..e2656d6899601e1b9ddadb6690b1158c60cc1b3c 100644
 --- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-@@ -283,7 +283,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -308,7 +308,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
  
      // Paper start
      private static void printOversizedLog(String msg, Path file, int x, int z) {
