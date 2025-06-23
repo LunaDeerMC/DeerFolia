@@ -68,7 +68,7 @@ index 6ee39b534b8d992655bc0cef3c299d12cbae0034..8fd162b6441ca1a6ee779d898ee854dc
                  .completer(new ConsoleCommandCompleter(this.server))
                  .option(LineReader.Option.COMPLETE_IN_WORD, true);
 diff --git a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
-index e741201fdbea0dbbc0e42313ebd33368014c9dc4..d9229cd25c2f3ba698cbf73b259a6de50f5a3418 100644
+index 10a0be7a4db1a51579d113d279af7a9effe7f438..8cda5d0a6d5ff1d6a1b22f41c5e91b684a21f5a1 100644
 --- a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
 +++ b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
 @@ -42,9 +42,9 @@ public record ServerBuildInfoImpl(
@@ -80,8 +80,8 @@ index e741201fdbea0dbbc0e42313ebd33368014c9dc4..d9229cd25c2f3ba698cbf73b259a6de5
              getManifestAttribute(manifest, ATTRIBUTE_BRAND_NAME)
 -                .orElse("Folia"), // Folia
 +                .orElse("DeerFolia"), // Folia  // DeerFolia - Rebrand
-             SharedConstants.getCurrentVersion().getId(),
-             SharedConstants.getCurrentVersion().getName(),
+             SharedConstants.getCurrentVersion().id(),
+             SharedConstants.getCurrentVersion().name(),
              getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
 diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
 index fad85bea8643a3a88ec5c4194de7a5060e81c136..03858588a5da20ecd5bb824c39f4cea68c25ae4c 100644

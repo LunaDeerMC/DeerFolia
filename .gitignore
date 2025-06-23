@@ -1,0 +1,45 @@
+.gradle
+build/
+
+/DeerFolia-server/build.gradle.kts
+/DeerFolia-server/src/minecraft
+/DeerFolia-api/build.gradle.kts
+/folia-server/build.gradle.kts
+/folia-server/src/minecraft
+/folia-api/build.gradle.kts
+/paper-server
+/paper-api
+
+### IntelliJ IDEA ###
+/.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store

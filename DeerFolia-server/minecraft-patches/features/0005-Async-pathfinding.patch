@@ -222,20 +222,20 @@ index 4f9f3367b1ca3903df03a80fa2b01a3d24e6e77d..96554237efc019109ad29f7cb2dce6bc
                                  return true;
                              } else {
 diff --git a/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java b/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java
-index d8f532c5e68ff4dff933556c4f981e9474c044e6..f7791add826fbe22e498d2b919d2247be434f231 100644
+index 73bba480f3f017a8aed14562bd82ba33db04391c..24f5c85739a9c482e00233d9cc4ca5392d91a64a 100644
 --- a/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java
 +++ b/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java
-@@ -56,7 +56,7 @@ public abstract class DoorInteractGoal extends Goal {
+@@ -54,7 +54,7 @@ public abstract class DoorInteractGoal extends Goal {
+             return false;
          } else {
-             GroundPathNavigation groundPathNavigation = (GroundPathNavigation)this.mob.getNavigation();
-             Path path = groundPathNavigation.getPath();
+             Path path = this.mob.getNavigation().getPath();
 -            if (path != null && !path.isDone()) {
 +            if (path != null && path.isProcessed() && !path.isDone()) { // DeerFolia - async pathfinding - ensure path is processed
                  for (int i = 0; i < Math.min(path.getNextNodeIndex() + 2, path.getNodeCount()); i++) {
                      Node node = path.getNode(i);
                      this.doorPos = new BlockPos(node.x, node.y + 1, node.z);
 diff --git a/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java b/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java
-index 66a02fe7594522ef391d67e09856bf3f70fe597d..8b922f34de0b8e173f0f0dcfc16da8647d31face 100644
+index 458ceec68ca138b0aa9b70d6c934473c01d468f4..d62a661d8dcb13f7c76b3029ab93d94a31de4c19 100644
 --- a/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java
 @@ -12,9 +12,25 @@ public class AmphibiousPathNavigation extends PathNavigation {
@@ -265,7 +265,7 @@ index 66a02fe7594522ef391d67e09856bf3f70fe597d..8b922f34de0b8e173f0f0dcfc16da864
      }
  
 diff --git a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
-index 71ea68b56b3069bdf8e47931156b6ef49ea8ce5d..35fa2796d2a1534e41fc336efde8e06cece5025c 100644
+index 077863b758fbc3e51f25bcf842d00a2cc07c6a2f..8682dfe3f130e4eac6d63141315c2ca9961318cd 100644
 --- a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
 @@ -16,9 +16,25 @@ public class FlyingPathNavigation extends PathNavigation {
@@ -303,7 +303,7 @@ index 71ea68b56b3069bdf8e47931156b6ef49ea8ce5d..35fa2796d2a1534e41fc336efde8e06c
          if (!this.isDone()) {
              if (this.canUpdatePath()) {
 diff --git a/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java b/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
-index a24e964aff5623e3d7f2b79c87b6067f565458c2..39c773e055d258c0cb77a3a4910ebb52e91af170 100644
+index 89a78ba2e96cf3d6c8cec850a6197d4ada18c9a1..6e7debe10fd18e8778ebde009f43eb0fd8c24873 100644
 --- a/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 @@ -24,9 +24,25 @@ public class GroundPathNavigation extends PathNavigation {
@@ -333,7 +333,7 @@ index a24e964aff5623e3d7f2b79c87b6067f565458c2..39c773e055d258c0cb77a3a4910ebb52
      }
  
 diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
-index f57ecfaa361055cb0233c60115ef48be4672e238..dec97cd9fa51a29a7edcee88852dfe6f6fae64d9 100644
+index 0072020113efefa3a050f166f63675524575e17e..4dc64604cfd434d9281978a6d869c00d3f1eb54b 100644
 --- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 @@ -169,6 +169,10 @@ public abstract class PathNavigation {
@@ -414,7 +414,7 @@ index f57ecfaa361055cb0233c60115ef48be4672e238..dec97cd9fa51a29a7edcee88852dfe6f
              Vec3 vec3 = new Vec3((endNode.x + this.mob.getX()) / 2.0, (endNode.y + this.mob.getY()) / 2.0, (endNode.z + this.mob.getZ()) / 2.0);
              return pos.closerToCenterThan(vec3, this.path.getNodeCount() - this.path.getNextNodeIndex());
 diff --git a/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java b/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java
-index 2979846853898d78a2df19df2287da16dbe4ae71..3b0e70bf65c2b9e97de85c97932c3ebc71aad325 100644
+index ea0f6a19e4a79538e68917ba86cbc98be4dbca8d..7e48e23c1936d8336e8f08f2496b767b1f3cc150 100644
 --- a/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/WaterBoundPathNavigation.java
 @@ -15,11 +15,27 @@ public class WaterBoundPathNavigation extends PathNavigation {
@@ -598,10 +598,10 @@ index c10810bf00d75f459c3c6a9415c1e09f0519d50e..c523ffb5cf4bd7e4d3a9ab5e0e34d01e
          return this.getOrLoad(SectionPos.asLong(pos)).flatMap(poiSection -> poiSection.getType(pos));
      }
 diff --git a/net/minecraft/world/entity/animal/Bee.java b/net/minecraft/world/entity/animal/Bee.java
-index acebccbbee2bebbf308ef0bc1598dd1fa372da92..4ffb2c7372c74fa1d7fabc4e34965afcb7fe3268 100644
+index 22b6b3452f410e8ace1847c87f31d566aebdb7e4..318342aa3230b6dae5b26a38dbe2e831f3c59ec3 100644
 --- a/net/minecraft/world/entity/animal/Bee.java
 +++ b/net/minecraft/world/entity/animal/Bee.java
-@@ -861,7 +861,7 @@ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
+@@ -862,7 +862,7 @@ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
                          } else {
                              Bee.this.pathfindRandomlyTowards(Bee.this.hivePos);
                          }
@@ -610,7 +610,7 @@ index acebccbbee2bebbf308ef0bc1598dd1fa372da92..4ffb2c7372c74fa1d7fabc4e34965afc
                          boolean flag = this.pathfindDirectlyTowards(Bee.this.hivePos);
                          if (!flag) {
                              this.dropAndBlacklistHive();
-@@ -915,7 +915,7 @@ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
+@@ -916,7 +916,7 @@ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
                  return true;
              } else {
                  Path path = Bee.this.navigation.getPath();
@@ -620,10 +620,10 @@ index acebccbbee2bebbf308ef0bc1598dd1fa372da92..4ffb2c7372c74fa1d7fabc4e34965afc
          }
      }
 diff --git a/net/minecraft/world/entity/animal/frog/Frog.java b/net/minecraft/world/entity/animal/frog/Frog.java
-index 28df4f6dfc0cdabe463bda74cd9c7f839a27413b..3da06b27554dbd0bf8d1b79f284e5d7303c6031f 100644
+index 4316b7d1ce9b02f527316a2e54f1661fd6eefe5d..3ea8ad3c296748f0127c3032f0ef187315df8ced 100644
 --- a/net/minecraft/world/entity/animal/frog/Frog.java
 +++ b/net/minecraft/world/entity/animal/frog/Frog.java
-@@ -433,6 +433,17 @@ public class Frog extends Animal {
+@@ -434,6 +434,17 @@ public class Frog extends Animal {
              super(mob, level);
          }
  
@@ -641,7 +641,7 @@ index 28df4f6dfc0cdabe463bda74cd9c7f839a27413b..3da06b27554dbd0bf8d1b79f284e5d73
          @Override
          public boolean canCutCorner(PathType pathType) {
              return pathType != PathType.WATER_BORDER && super.canCutCorner(pathType);
-@@ -441,6 +452,11 @@ public class Frog extends Animal {
+@@ -442,6 +453,11 @@ public class Frog extends Animal {
          @Override
          protected PathFinder createPathFinder(int maxVisitedNodes) {
              this.nodeEvaluator = new Frog.FrogNodeEvaluator(true);
@@ -654,10 +654,10 @@ index 28df4f6dfc0cdabe463bda74cd9c7f839a27413b..3da06b27554dbd0bf8d1b79f284e5d73
          }
      }
 diff --git a/net/minecraft/world/entity/monster/Drowned.java b/net/minecraft/world/entity/monster/Drowned.java
-index 4978cd2a7a84130fc0de1cc481b39d61f388c812..b735bb29a89506dc0c88b9cb8a4c63a71cdc2142 100644
+index f42f9c232fa588835654de0fdea36b9cdfa34571..2fd16588d324e35c1d047efdc3196df09891f39d 100644
 --- a/net/minecraft/world/entity/monster/Drowned.java
 +++ b/net/minecraft/world/entity/monster/Drowned.java
-@@ -239,7 +239,7 @@ public class Drowned extends Zombie implements RangedAttackMob {
+@@ -234,7 +234,7 @@ public class Drowned extends Zombie implements RangedAttackMob {
  
      protected boolean closeToNextPos() {
          Path path = this.getNavigation().getPath();
@@ -697,10 +697,10 @@ index afa584e2aba6bebfb2dd343215b043c983281853..4a2a4efeb51f51fde90a397926df732d
          }
  
 diff --git a/net/minecraft/world/entity/monster/ZombifiedPiglin.java b/net/minecraft/world/entity/monster/ZombifiedPiglin.java
-index 05de183ce7b0be9b41f005b2ca36807a109fc634..58eaa2ba7702db8561d43ae6c2b2010ec7df9301 100644
+index 822712eaff2f6c579d982734ab14a00c02182770..2fc55b40f07cc6c618e7bc6337ce01bd9fa97d80 100644
 --- a/net/minecraft/world/entity/monster/ZombifiedPiglin.java
 +++ b/net/minecraft/world/entity/monster/ZombifiedPiglin.java
-@@ -58,6 +58,16 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
+@@ -59,6 +59,16 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
      private int ticksUntilNextAlert;
      private HurtByTargetGoal hurtByTargetGoal; // Paper - fix PigZombieAngerEvent cancellation
  
@@ -717,7 +717,7 @@ index 05de183ce7b0be9b41f005b2ca36807a109fc634..58eaa2ba7702db8561d43ae6c2b2010e
      public ZombifiedPiglin(EntityType<? extends ZombifiedPiglin> entityType, Level level) {
          super(entityType, level);
          this.setPathfindingMalus(PathType.LAVA, 8.0F);
-@@ -159,6 +169,7 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
+@@ -160,6 +170,7 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
              this.ticksUntilNextAlert = ALERT_INTERVAL.sample(this.random);
          }
  
@@ -726,10 +726,10 @@ index 05de183ce7b0be9b41f005b2ca36807a109fc634..58eaa2ba7702db8561d43ae6c2b2010e
      }
  
 diff --git a/net/minecraft/world/entity/monster/warden/Warden.java b/net/minecraft/world/entity/monster/warden/Warden.java
-index 34b0e94c6535843bfebb75abdfd3ab2239e1d061..815b1b257aecbc0f8649282d5f63d4bc34fbfc25 100644
+index 362ef48f0177765f48af4535dffb6a227eb283a9..2562cae27e626da3407d892eb33f824f0aa1b3d4 100644
 --- a/net/minecraft/world/entity/monster/warden/Warden.java
 +++ b/net/minecraft/world/entity/monster/warden/Warden.java
-@@ -560,6 +560,16 @@ public class Warden extends Monster implements VibrationSystem {
+@@ -556,6 +556,16 @@ public class Warden extends Monster implements VibrationSystem {
              @Override
              protected PathFinder createPathFinder(int maxVisitedNodes) {
                  this.nodeEvaluator = new WalkNodeEvaluator();
@@ -747,10 +747,10 @@ index 34b0e94c6535843bfebb75abdfd3ab2239e1d061..815b1b257aecbc0f8649282d5f63d4bc
                      @Override
                      protected float distance(Node first, Node second) {
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 23ccd2bc86e643eb3e79195d20c1182d3ad7ead6..4a93d5a72806bb0b0eae15d44d0314ca458c786a 100644
+index e74ea44096e071878372c5b8889f45cd2bd4ae23..6788dbdc0d1309efb90faab4147404499c392beb 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
-@@ -471,7 +471,10 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+@@ -473,7 +473,10 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
      @Nullable
      public BlockEntity getBlockEntity(BlockPos pos, LevelChunk.EntityCreationType creationType) {
          // CraftBukkit start
