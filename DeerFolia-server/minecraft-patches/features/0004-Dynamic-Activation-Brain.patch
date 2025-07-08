@@ -46,7 +46,7 @@ index 5e3be75b27ed609be005e8169dc84c125518253e..232920124effaf94b1d958545c8c9c0a
                              if (!tickRateManager.isEntityFrozen(entity)) {
                                  profilerFiller.push("checkDespawn");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 300f42bb0fb76569143228a517fd712f6de67e85..f84b5a3736a9dea3e0699997774c1e29b9e47efd 100644
+index 60004e94e749d297a970ad1dd5048e8332b97916..d5dbe66f6575da5edeb0c34587fddf354a67af9a 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -371,6 +371,8 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
@@ -338,10 +338,10 @@ index 4a4cc7f9c95d4f4b6ad4948e3ed3504efbbcef15..362ef48f0177765f48af4535dffb6a22
          profilerFiller.pop();
          super.customServerAiStep(level);
 diff --git a/net/minecraft/world/entity/npc/Villager.java b/net/minecraft/world/entity/npc/Villager.java
-index 3a4d349738aada9c171f01cd695987a21da3785c..b04b1e3ef78a88f3d229f29cfad8e4597c8ed313 100644
+index 7d02def8b650a7574c1a6b0c212d6973d2b46f45..0d4fa69e87d755797c59025bff818107ff6d4698 100644
 --- a/net/minecraft/world/entity/npc/Villager.java
 +++ b/net/minecraft/world/entity/npc/Villager.java
-@@ -180,6 +180,8 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+@@ -179,6 +179,8 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
          (villager, poiType) -> poiType.is(PoiTypes.MEETING)
      );
  
@@ -350,7 +350,7 @@ index 3a4d349738aada9c171f01cd695987a21da3785c..b04b1e3ef78a88f3d229f29cfad8e459
      public Villager(EntityType<? extends Villager> entityType, Level level) {
          this(entityType, level, VillagerType.PLAINS);
      }
-@@ -288,6 +290,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+@@ -287,6 +289,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
      }
      // Paper end - EAR 2
  
@@ -358,7 +358,7 @@ index 3a4d349738aada9c171f01cd695987a21da3785c..b04b1e3ef78a88f3d229f29cfad8e459
      @Override
      protected void customServerAiStep(ServerLevel level) {
          // Paper start - EAR 2
-@@ -297,7 +300,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+@@ -296,7 +299,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
          // Paper end - EAR 2
          ProfilerFiller profilerFiller = Profiler.get();
          profilerFiller.push("villagerBrain");
