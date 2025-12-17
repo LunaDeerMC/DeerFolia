@@ -1,6 +1,6 @@
 --- a/folia-server/build.gradle.kts
 +++ b/folia-server/build.gradle.kts
-@@ -27,6 +_,7 @@
+@@ -23,6 +_,7 @@
      gitFilePatches = false
      
      val fork = forks.register("folia") {
@@ -8,7 +8,7 @@
          upstream.patchDir("paperServer") {
              upstreamPath = "paper-server"
              excludes = setOf("src/minecraft", "patches", "build.gradle.kts")
-@@ -35,7 +_,27 @@
+@@ -31,7 +_,27 @@
          }
      }
  
@@ -37,26 +37,26 @@
  
  
      spigot {
-@@ -153,7 +_,7 @@
+@@ -151,7 +_,7 @@
  }
  
  dependencies {
 -    implementation(project(":folia-api"))
 +    implementation(project(":DeerFolia-api"))
-     implementation("ca.spottedleaf:concurrentutil:0.0.3")
+     implementation("ca.spottedleaf:concurrentutil:0.0.7")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
-@@ -210,6 +_,9 @@
+@@ -208,6 +_,9 @@
      // Spark
      implementation("me.lucko:spark-api:0.1-20240720.200737-2")
-     implementation("me.lucko:spark-paper:1.10.133-20250413.112336-1")
+     implementation("me.lucko:spark-paper:1.10.152")
 +
 +    // Kaiiju - Entity throttling & Removal
 +    implementation("io.github.classgraph:classgraph:4.8.158")
  }
  
  tasks.jar {
-@@ -224,14 +_,14 @@
+@@ -222,14 +_,14 @@
          val gitBranch = git.exec(providers, "rev-parse", "--abbrev-ref", "HEAD").get().trim()
          attributes(
              "Main-Class" to "org.bukkit.craftbukkit.Main",

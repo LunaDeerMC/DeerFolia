@@ -569,7 +569,6 @@ index 0d177e828c2b338ce93c58aaef04df326e1eb0b2..93f68172816c7a31c9b1920cf1aebf2b
 +                                                queryResult.set(GlobalPos.of(world.dimension(), blockPos));
 +                                                entityStatus.ifPresent(status -> world.broadcastEntityEvent(entity, status));
 +                                                long2ObjectMap.clear();
-+                                                DebugPackets.sendPoiTicketCountPacket(world, blockPos);
 +                                            });
 +                                        });
 +                                    } else {
@@ -734,7 +733,6 @@ index 6802e0c4d331c7125114dd86409f6a110465ab82..eebfb465e26a8f3da2cb0bfb94d805d2
 +                                                Optional<Holder<PoiType>> optional2 = poiManager.getTypeWithoutLoad(blockPos);
 +                                                if (optional2.isPresent()) {
 +                                                    walkTarget.set(new WalkTarget(blockPos, speed, 1));
-+                                                    DebugPackets.sendPoiTicketCountPacket(world, blockPos);
 +                                                }
 +                                            });
 +                                        } else {

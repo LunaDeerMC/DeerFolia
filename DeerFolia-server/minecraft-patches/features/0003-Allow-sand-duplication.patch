@@ -5,10 +5,10 @@ Subject: [PATCH] Allow sand duplication
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index f342840dacf77ebe7de7c289657198495af9eb1f..03885dda5ca9b4be35ca5e354e8ecc95c337975b 100644
+index 02e5eff81568aff2fa9dc21e1225126bff517c79..6dd28d91ea1cd7b57792a5a8b7e3fd509dcc1951 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4431,14 +4431,19 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4518,14 +4518,19 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
                          targetPos, 16, // load 16 blocks to be safe from block physics
                          ca.spottedleaf.concurrentutil.util.Priority.HIGH,
                          (chunks) -> {
@@ -27,11 +27,11 @@ index f342840dacf77ebe7de7c289657198495af9eb1f..03885dda5ca9b4be35ca5e354e8ecc95
 -                                    destination, Vec3.atBottomCenterOf(targetPos.below()), Vec3.ZERO, Direction.WEST.toYRot(), 0.0f,
 -                                    Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
 +                                    destination, finalPos, this.getDeltaMovement(), 90.0f, 0.0f,    // DeerFolia Vanilla end teleportation
-+                                    // Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),  // DeerFolia Vanilla end teleportation
++                                    Set.of(),  // DeerFolia Vanilla end teleportation
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET),
                                      org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL
                                  )
-@@ -4635,6 +4640,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4722,6 +4727,11 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
          if (!this.canPortalAsync(destination, takePassengers)) {
              return false;
          }
@@ -43,7 +43,7 @@ index f342840dacf77ebe7de7c289657198495af9eb1f..03885dda5ca9b4be35ca5e354e8ecc95
  
          Vec3 initialPosition = this.position();
          ChunkPos initialPositionChunk = new ChunkPos(
-@@ -4699,9 +4709,14 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4786,9 +4796,14 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
                          info.postTeleportTransition().onTransition(teleported);
                      }
  
@@ -61,23 +61,23 @@ index f342840dacf77ebe7de7c289657198495af9eb1f..03885dda5ca9b4be35ca5e354e8ecc95
              );
          });
 diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
-index 34e31fa13e5107f13e166f694fafe58e306330ae..89190414bccaf647b2b1c60bf994e61e22398567 100644
+index 8009dfe104d53ebfc10f0eb86e955d21831dbffc..8f398f5d06390c5135a06a76557f0f2d7332b2ae 100644
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
-@@ -70,7 +70,7 @@ public class FallingBlockEntity extends Entity {
+@@ -69,7 +69,7 @@ public class FallingBlockEntity extends Entity {
+     public int fallDamageMax = 40;
      public float fallDamagePerDistance = 0.0F;
-     @Nullable
-     public CompoundTag blockData;
+     public @Nullable CompoundTag blockData;
 -    public boolean forceTickAfterTeleportToDuplicate;
 +    public boolean forceTickAfterTeleportToDuplicate = true;    // DeerFolia - Sand duplication
      protected static final EntityDataAccessor<BlockPos> DATA_START_POS = SynchedEntityData.defineId(FallingBlockEntity.class, EntityDataSerializers.BLOCK_POS);
      public boolean autoExpire = true; // Paper - Expand FallingBlock API
  
 diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
-index 6e495b2c4176d5a30ea911f8e44a22655df92ef6..6f8684bd7655f31bb7d7e8fdaf91b51b9a7f769d 100644
+index 6bff1704203c2de91eb01bda5220f4ea4d49c6ec..97ad4ceafb46b95c761edb748402017e6c0189eb 100644
 --- a/net/minecraft/world/level/block/EndPortalBlock.java
 +++ b/net/minecraft/world/level/block/EndPortalBlock.java
-@@ -69,6 +69,11 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+@@ -70,6 +70,11 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
                  if (level.paperConfig().misc.disableEndCredits) {serverPlayer.seenCredits = true; return;} // Paper - Option to disable end credits
                  serverPlayer.showEndCredits();
              } else {

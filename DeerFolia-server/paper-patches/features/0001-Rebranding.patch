@@ -5,7 +5,7 @@ Subject: [PATCH] Rebranding
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
-index 90a5178b5025378197b69514d782de5d6090cb6b..412eb073b2662fe645cdd15faca2d78c50c28fd9 100644
+index 08745a35b1ce8cc56d970472088de3cd17b9e43a..96637abe31b6801fbf4233af6cddbc5822bfd53d 100644
 --- a/src/main/java/com/destroystokyo/paper/Metrics.java
 +++ b/src/main/java/com/destroystokyo/paper/Metrics.java
 @@ -593,7 +593,11 @@ public class Metrics {
@@ -84,7 +84,7 @@ index 10a0be7a4db1a51579d113d279af7a9effe7f438..8cda5d0a6d5ff1d6a1b22f41c5e91b68
              SharedConstants.getCurrentVersion().name(),
              getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
 diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
-index fad85bea8643a3a88ec5c4194de7a5060e81c136..03858588a5da20ecd5bb824c39f4cea68c25ae4c 100644
+index c4dcddc4db02ed3641d05fae31ead7c13205f841..d2d1e28ea6759579a1415da6a4596a408a42553c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
 +++ b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
 @@ -491,7 +491,7 @@ public class CraftScheduler implements BukkitScheduler {
@@ -96,21 +96,8 @@ index fad85bea8643a3a88ec5c4194de7a5060e81c136..03858588a5da20ecd5bb824c39f4cea6
                  // We don't need to parse pending
                  // (async tasks must live with race-conditions if they attempt to cancel between these few lines of code)
              }
-diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index e9b6ca3aa25e140467ae866d572483050ea3fa0e..287183c78b30b850c368aa243730009253c32158 100644
---- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-+++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-@@ -11,7 +11,7 @@ public final class Versioning {
-     public static String getBukkitVersion() {
-         String result = "Unknown-Version";
- 
--        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/dev.folia/folia-api/pom.properties"); // Folia
-+        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/cn.lunadeer/DeerFolia-api/pom.properties"); // Folia // DeerFolia
-         Properties properties = new Properties();
- 
-         if (stream != null) {
 diff --git a/src/main/java/org/spigotmc/WatchdogThread.java b/src/main/java/org/spigotmc/WatchdogThread.java
-index eafdb55d7418606dbca0b3bc4787501fed872c0a..08cb8fe37b66e49e0b76388c9139062f803cc26d 100644
+index 3e73e674823b34879572135eaa6ab47807c29023..7833e883f26a7c489c6b9ac46d0a5daa1f9f7722 100644
 --- a/src/main/java/org/spigotmc/WatchdogThread.java
 +++ b/src/main/java/org/spigotmc/WatchdogThread.java
 @@ -25,7 +25,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
