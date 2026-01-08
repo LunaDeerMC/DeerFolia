@@ -1,0 +1,198 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Thu, 8 Jan 2026 15:01:49 +0800
+Subject: [PATCH] POI Optimization
+
+
+diff --git a/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java b/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
+index f803e7c6928274fe6161d6f27beb6c66504e0c80..3b084d9ddd351f96db50fb964c1b891a1ab86085 100644
+--- a/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
++++ b/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
+@@ -11,6 +11,39 @@ import net.minecraft.world.entity.npc.villager.Villager;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class GoToClosestVillage {
++    // DeerFolia start - POI optimization - cache village distance
++    private static final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<CachedVillageDistance> villageDistanceCache = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
++
++    private static class CachedVillageDistance {
++        int distance;
++        long cacheTime;
++
++        CachedVillageDistance(int distance, long cacheTime) {
++            this.distance = distance;
++            this.cacheTime = cacheTime;
++        }
++    }
++
++    private static int getCachedSectionsToVillage(PoiManager poiManager, SectionPos sectionPos, long gameTime) {
++        if (!cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled) {
++            return poiManager.sectionsToVillage(sectionPos);
++        }
++        long sectionKey = sectionPos.asLong();
++        CachedVillageDistance cached = villageDistanceCache.get(sectionKey);
++        int cacheDuration = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.villageDistanceCacheDuration;
++        if (cached != null && gameTime - cached.cacheTime < cacheDuration) {
++            return cached.distance;
++        }
++        int distance = poiManager.sectionsToVillage(sectionPos);
++        villageDistanceCache.put(sectionKey, new CachedVillageDistance(distance, gameTime));
++        // Clean old entries periodically
++        if (villageDistanceCache.size() > 1000 && gameTime % 200 == 0) {
++            villageDistanceCache.long2ObjectEntrySet().removeIf(entry -> gameTime - entry.getValue().cacheTime > cacheDuration * 2);
++        }
++        return distance;
++    }
++    // DeerFolia end - POI optimization
++
+     public static BehaviorControl<Villager> create(float speedModifier, int closeEnoughDist) {
+         return BehaviorBuilder.create(
+             instance -> instance.group(instance.absent(MemoryModuleType.WALK_TARGET)).apply(instance, walkTarget -> (level, villager, gameTime) -> {
+@@ -18,13 +51,15 @@ public class GoToClosestVillage {
+                     return false;
+                 } else {
+                     PoiManager poiManager = level.getPoiManager();
+-                    int i = poiManager.sectionsToVillage(SectionPos.of(villager.blockPosition()));
++                    // DeerFolia start - POI optimization - use cached distance
++                    int i = getCachedSectionsToVillage(poiManager, SectionPos.of(villager.blockPosition()), gameTime);
+                     Vec3 vec3 = null;
+ 
+                     for (int i1 = 0; i1 < 5; i1++) {
+-                        Vec3 pos = LandRandomPos.getPos(villager, 15, 7, pos1 -> -poiManager.sectionsToVillage(SectionPos.of(pos1)));
++                        Vec3 pos = LandRandomPos.getPos(villager, 15, 7, pos1 -> -getCachedSectionsToVillage(poiManager, SectionPos.of(pos1), gameTime));
+                         if (pos != null) {
+-                            int i2 = poiManager.sectionsToVillage(SectionPos.of(BlockPos.containing(pos)));
++                            int i2 = getCachedSectionsToVillage(poiManager, SectionPos.of(BlockPos.containing(pos)), gameTime);
++                            // DeerFolia end - POI optimization
+                             if (i2 < i) {
+                                 vec3 = pos;
+                                 break;
+diff --git a/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java b/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
+index 47b085b866ea2ff424f2edee73fc5c5681d21559..4b433017e5b8b9bd46931ba2beecb51d9a02c44a 100644
+--- a/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
++++ b/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
+@@ -18,9 +18,23 @@ import net.minecraft.world.phys.AABB;
+ 
+ public class ValidateNearbyPoi {
+     private static final int MAX_DISTANCE = 16;
++    // DeerFolia start - POI optimization - rate limit validation
++    private static final int VALIDATION_INTERVAL = 40; // Only validate every 2 seconds (40 ticks)
++    // DeerFolia end - POI optimization
+ 
+     public static BehaviorControl<LivingEntity> create(Predicate<Holder<PoiType>> poiValidator, MemoryModuleType<GlobalPos> poiPosMemory) {
++        // DeerFolia start - POI optimization - track last validation time
++        final org.apache.commons.lang3.mutable.MutableLong lastValidationTime = new org.apache.commons.lang3.mutable.MutableLong(0L);
++        // DeerFolia end - POI optimization
+         return BehaviorBuilder.create(instance -> instance.group(instance.present(poiPosMemory)).apply(instance, poiPos -> (level, entity, gameTime) -> {
++            // DeerFolia start - POI optimization - rate limit validation
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled) {
++                if (gameTime - lastValidationTime.longValue() < VALIDATION_INTERVAL) {
++                    return false;
++                }
++                lastValidationTime.setValue(gameTime);
++            }
++            // DeerFolia end - POI optimization
+             GlobalPos globalPos = instance.get(poiPos);
+             BlockPos blockPos = globalPos.pos();
+             if (level.dimension() == globalPos.dimension() && blockPos.closerToCenterThan(entity.position(), 16.0)) {
+diff --git a/net/minecraft/world/entity/ai/sensing/GolemSensor.java b/net/minecraft/world/entity/ai/sensing/GolemSensor.java
+index 84d9e2a43adbabda8401e8ad8dd8d87f7dbeeea7..e83f1f90d3a46d98c09d26989243920e599d24f8 100644
+--- a/net/minecraft/world/entity/ai/sensing/GolemSensor.java
++++ b/net/minecraft/world/entity/ai/sensing/GolemSensor.java
+@@ -23,6 +23,23 @@ public class GolemSensor extends Sensor<LivingEntity> {
+ 
+     @Override
+     protected void doTick(ServerLevel level, LivingEntity entity) {
++        // DeerFolia start - POI optimization - skip check if far from players
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled) {
++            int playerDistanceLimit = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.golemSpawnPlayerDistanceLimit;
++            if (playerDistanceLimit > 0) {
++                boolean hasNearbyPlayer = false;
++                for (net.minecraft.server.level.ServerPlayer player : level.players()) {
++                    if (player.distanceToSqr(entity) <= playerDistanceLimit * playerDistanceLimit) {
++                        hasNearbyPlayer = true;
++                        break;
++                    }
++                }
++                if (!hasNearbyPlayer) {
++                    return;
++                }
++            }
++        }
++        // DeerFolia end - POI optimization
+         checkForNearbyGolem(entity);
+     }
+ 
+diff --git a/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java b/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java
+index 39a9e9a6f6dfddbf47a7f96150ef832efe61f89e..aa5fc3d224ab0033ceb6669562391b98815e2f22 100644
+--- a/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java
++++ b/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java
+@@ -17,11 +17,24 @@ public class SecondaryPoiSensor extends Sensor<Villager> {
+     private static final int SCAN_RATE = 40;
+ 
+     public SecondaryPoiSensor() {
+-        super(40);
++        // DeerFolia start - POI optimization - configurable scan rate
++        super(cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled
++            ? cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.secondaryPoiSensorInterval
++            : 40);
++        // DeerFolia end - POI optimization
+     }
+ 
+     @Override
+     protected void doTick(ServerLevel level, Villager entity) {
++        // DeerFolia start - POI optimization - skip if profession has no secondary POI
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled) {
++            Set<net.minecraft.world.level.block.Block> secondaryPoi = entity.getVillagerData().profession().value().secondaryPoi();
++            if (secondaryPoi.isEmpty()) {
++                entity.getBrain().eraseMemory(MemoryModuleType.SECONDARY_JOB_SITE);
++                return;
++            }
++        }
++        // DeerFolia end - POI optimization
+         ResourceKey<Level> resourceKey = level.dimension();
+         BlockPos blockPos = entity.blockPosition();
+         List<GlobalPos> list = Lists.newArrayList();
+diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
+index 0a68280c71e64d199491a1c1f0dc2169d9f9cf61..9ced72cfc528abd829da1ecfd66e63dc0fdbc5ee 100644
+--- a/net/minecraft/world/entity/npc/villager/Villager.java
++++ b/net/minecraft/world/entity/npc/villager/Villager.java
+@@ -181,6 +181,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     );
+ 
+     public long nextGolemPanic = -1; // DeerFolia - pufferfish DAB
++    private long lastGolemSpawnCheck = 0; // DeerFolia - POI optimization
+ 
+     public Villager(EntityType<? extends Villager> type, Level level) {
+         this(type, level, VillagerType.PLAINS);
+@@ -926,6 +927,30 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     }
+ 
+     public void spawnGolemIfNeeded(ServerLevel level, long gameTime, int minVillagerAmount) {
++        // DeerFolia start - POI optimization - rate limit golem spawn checks
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled) {
++            int checkInterval = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.golemSpawnCheckInterval;
++            if (gameTime - this.lastGolemSpawnCheck < checkInterval) {
++                return;
++            }
++            this.lastGolemSpawnCheck = gameTime;
++
++            // Skip if no player nearby
++            int playerDistanceLimit = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.golemSpawnPlayerDistanceLimit;
++            if (playerDistanceLimit > 0) {
++                boolean hasNearbyPlayer = false;
++                for (net.minecraft.server.level.ServerPlayer player : level.players()) {
++                    if (player.distanceToSqr(this) <= playerDistanceLimit * playerDistanceLimit) {
++                        hasNearbyPlayer = true;
++                        break;
++                    }
++                }
++                if (!hasNearbyPlayer) {
++                    return;
++                }
++            }
++        }
++        // DeerFolia end - POI optimization
+         if (this.wantsToSpawnGolem(gameTime)) {
+             AABB aabb = this.getBoundingBox().inflate(10.0, 10.0, 10.0);
+             List<Villager> entitiesOfClass = level.getEntitiesOfClass(Villager.class, aabb);

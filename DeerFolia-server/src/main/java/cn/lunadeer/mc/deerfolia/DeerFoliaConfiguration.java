@@ -60,4 +60,20 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         public boolean optimizedFrameEncoding = true;
     }
 
+    @Comments("POI (Point of Interest) Optimizations - Reduce CPU usage with many villagers")
+    public static PoiOptimizations poiOptimizations = new PoiOptimizations();
+
+    public static class PoiOptimizations extends ConfigurationPart {
+        @Comments("Enable POI optimizations")
+        public boolean enabled = true;
+        @Comments("Minimum interval (ticks) between golem spawn checks per villager")
+        public int golemSpawnCheckInterval = 200;
+        @Comments("Minimum interval (ticks) between secondary POI sensor scans")
+        public int secondaryPoiSensorInterval = 80;
+        @Comments("Cache duration (ticks) for village distance calculations")
+        public int villageDistanceCacheDuration = 100;
+        @Comments("Skip golem spawn check if villager is more than this distance from nearest player")
+        public int golemSpawnPlayerDistanceLimit = 128;
+    }
+
 }
