@@ -19,8 +19,6 @@ DeerFolia 是一个基于 [Folia](https://papermc.io/software/folia) 的 Minecra
 - [Async Path Finding (Pufferfish)](deer-folia-server/minecraft-patches/features/0005-Async-pathfinding.patch)；
 - [Kaiiju Entity Throttling (Kaiiju)](deer-folia-server/minecraft-patches/features/0007-Kaiiju-Entity-Throttling.patch)；
 - [Kaiiju Skip Empty Listeners Event](deer-folia-server/paper-patches/features/0002-Kaiiju-Skip-Empty-Listeners-Event.patch)；
-- ~~还原了 [虚空交易](https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/src/branch/master/patches/server/0002-Allow-void-trading.patch)~~（疑似已被 mojang 官方修复）；
-- ~~还原了 [刷线机制](https://ssl.lunadeer.cn:14446/zhangyuheng/DeerFolia/src/branch/master/patches/server/0004-Allow-tripwire-duplication.patch)~~（mojang已在1.21.3修复）；
 
 ## 额外配置
 
@@ -85,20 +83,20 @@ ZombifiedPiglin:
 
 1. 克隆本仓库到本地；
 2. 在终端执行 `./gradlew applyAllPatches` 应用补丁；
-3. 完成后会在项目目录下生成 `deer-folia-server` 和 `deer-folia-api` ，前者即为源码目录;
-4. 执行 `./gradlew createMojmapPaperclipJar` ，完成后会在 `deer-folia-server/build/libs` 下生成服务器核心文件；
+3. 完成后会在项目目录下生成 `DeerFolia-server` 和 `DeerFolia-api` ，前者即为源码目录;
+4. 执行 `./gradlew createMojmapPaperclipJar` ，完成后会在 `DeerFolia-server/build/libs` 下生成服务器核心文件；
 
 ## 如何添加新补丁
 
 ### 对上游代码修改
 
-1. 修改 `deer-folia-server` 或 `deer-folia-api` 中的源码；
-2. 在 `deer-folia-server` 或 `deer-folia-api` 目录中将修改内容添加 `git add .` 并提交 `git commit` ，填写补丁信息；
+1. 修改 `DeerFolia-server` 或 `DeerFolia-api` 中的源码；
+2. 在 `DeerFolia-server` 或 `DeerFolia-api` 目录中将修改内容添加 `git add .` 并提交 `git commit` ，填写补丁信息；
 3. 在根目录运行 `./gradlew rebuildAllServerPatches` ，将刚才提交的修改生成为新补丁；
 
 ### 新增文件
 
-1. 在 `deer-folia-server/src/main/java` 中新增相关文件；
+1. 在 `DeerFolia-server/src/main/java` 中新增相关文件；
 2. 直接提交 `git add .` 并提交 `git commit` ，填写补丁信息即可；
 
 > 通过将与上游源码无关的新增文件独立开，减少对上游修改 patch 文件的长度使得项目更易于维护。
@@ -115,7 +113,7 @@ ZombifiedPiglin:
 > Server 补丁，则必须重新应用 API 补丁。还要注意的是，这样做时任何一个模块都可能无法编译。这不是一个正常的现象，但这种情况时有发生。请给
 > Paper 官方提交 ISSUE ！
 
-1. 在 `deer-folia-server` 或 `deer-folia-api` 目录中执行 `git rebase -i base`
+1. 在 `DeerFolia-server` 或 `DeerFolia-api` 目录中执行 `git rebase -i base`
    ，应该会输出 [这样的](https://gist.github.com/zachbr/21e92993cb99f62ffd7905d7b02f3159) 内容。
 2. 将你需要修改的补丁由 `pick` 替换为 `edit` 然后保存退出；
    - 一次只能修改 **一个** 文件！
