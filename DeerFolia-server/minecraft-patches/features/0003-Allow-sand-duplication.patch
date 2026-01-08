@@ -5,10 +5,10 @@ Subject: [PATCH] Allow sand duplication
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 02e5eff81568aff2fa9dc21e1225126bff517c79..6dd28d91ea1cd7b57792a5a8b7e3fd509dcc1951 100644
+index 3df00628e64f55f86095f4b7d35a116515e49628..9c8dc1cdb08d2720e58f4399fbf8c6c08a0cd50b 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4518,14 +4518,19 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+@@ -4513,14 +4513,19 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
                          targetPos, 16, // load 16 blocks to be safe from block physics
                          ca.spottedleaf.concurrentutil.util.Priority.HIGH,
                          (chunks) -> {
@@ -31,7 +31,7 @@ index 02e5eff81568aff2fa9dc21e1225126bff517c79..6dd28d91ea1cd7b57792a5a8b7e3fd50
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET),
                                      org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL
                                  )
-@@ -4722,6 +4727,11 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+@@ -4717,6 +4722,11 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
          if (!this.canPortalAsync(destination, takePassengers)) {
              return false;
          }
@@ -43,7 +43,7 @@ index 02e5eff81568aff2fa9dc21e1225126bff517c79..6dd28d91ea1cd7b57792a5a8b7e3fd50
  
          Vec3 initialPosition = this.position();
          ChunkPos initialPositionChunk = new ChunkPos(
-@@ -4786,9 +4796,14 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+@@ -4781,9 +4791,14 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
                          info.postTeleportTransition().onTransition(teleported);
                      }
  

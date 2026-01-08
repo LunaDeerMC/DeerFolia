@@ -5,10 +5,10 @@ Subject: [PATCH] Kaiiju Entity Throttling
 
 
 diff --git a/io/papermc/paper/threadedregions/RegionizedWorldData.java b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-index 30a3a09247c6229580a4e0a5bc8a496ace5b8a2c..421b62d0ccbb30805a4866ef318c62d6dabc19a0 100644
+index 1f49d787ecee4ba9dce087036a4e3cbce2228c17..b974742a0fb2dc18cfc9a61159ab0a2567a4dca4 100644
 --- a/io/papermc/paper/threadedregions/RegionizedWorldData.java
 +++ b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-@@ -357,6 +357,7 @@ public final class RegionizedWorldData {
+@@ -358,6 +358,7 @@ public final class RegionizedWorldData {
      private final IteratorSafeOrderedReferenceSet<Mob> navigatingMobs = new IteratorSafeOrderedReferenceSet<>();
      public final ReferenceList<Entity> trackerEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
      public final ReferenceList<Entity> trackerUnloadedEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
@@ -17,7 +17,7 @@ index 30a3a09247c6229580a4e0a5bc8a496ace5b8a2c..421b62d0ccbb30805a4866ef318c62d6
      // block ticking
      private final ObjectLinkedOpenHashSet<BlockEventData> blockEvents = new ObjectLinkedOpenHashSet<>();
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 2a2c3512b7a2bffff340dda2d00b190d7996ebd1..91448866cd67dddb71f3c5eb90694d0951c47570 100644
+index 079afeab38417833cae4816d26d06b9203694f5a..39af286cbc467ed5ad3ef5c4b60f55382cccb6a3 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -843,6 +843,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe

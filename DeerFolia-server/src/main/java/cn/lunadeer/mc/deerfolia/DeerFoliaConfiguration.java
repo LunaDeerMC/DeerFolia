@@ -50,4 +50,14 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         KaiijuEntityLimits.init(new File(PaperConfigurations.CONFIG_DIR, "kaiiju-entity-throttling.yml"));
     }
 
+    @Comments("Network Optimizations - Reduce CPU and bandwidth usage")
+    public static NetworkOptimizations networkOptimizations = new NetworkOptimizations();
+
+    public static class NetworkOptimizations extends ConfigurationPart {
+        @Comments("Enable optimized VarInt read/write operations")
+        public boolean optimizedVarInt = true;
+        @Comments("Enable optimized frame encoding for better throughput")
+        public boolean optimizedFrameEncoding = true;
+    }
+
 }
