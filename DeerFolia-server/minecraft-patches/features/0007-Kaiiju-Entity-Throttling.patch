@@ -17,10 +17,10 @@ index 1f49d787ecee4ba9dce087036a4e3cbce2228c17..b974742a0fb2dc18cfc9a61159ab0a25
      // block ticking
      private final ObjectLinkedOpenHashSet<BlockEventData> blockEvents = new ObjectLinkedOpenHashSet<>();
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 079afeab38417833cae4816d26d06b9203694f5a..39af286cbc467ed5ad3ef5c4b60f55382cccb6a3 100644
+index f216c9b6134dc6cbeee8b9dbb4200d43adf0b263..151df4205df53fa4ab8ba13a8a39c59849d240de 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -843,6 +843,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -859,6 +859,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                  } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.DRAGON_FIGHT_TICK); } // Folia - profiler
              }
  
@@ -28,7 +28,7 @@ index 079afeab38417833cae4816d26d06b9203694f5a..39af286cbc467ed5ad3ef5c4b60f5538
              profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); try { // Folia - profiler
              io.papermc.paper.entity.activation.ActivationRange.activateEntities(this); // Paper - EAR
              } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
-@@ -867,6 +868,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -883,6 +884,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                                          entity.stopRiding();
                                      }
  
@@ -42,7 +42,7 @@ index 079afeab38417833cae4816d26d06b9203694f5a..39af286cbc467ed5ad3ef5c4b60f5538
                                      profilerFiller.push("tick");
                                      this.guardEntityTick(this::tickNonPassenger, entity);
                                      profilerFiller.pop();
-@@ -876,6 +884,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -892,6 +900,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                      }
                  );
              } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); } // Folia - profiler

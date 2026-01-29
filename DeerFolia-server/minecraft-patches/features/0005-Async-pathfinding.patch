@@ -679,7 +679,7 @@ index 33779df14049d06b8af2438a9d9265f5035d15ae..5b0552b765e1e459902c4ce7b7f4cac9
                      @Override
                      protected float distance(Node first, Node second) {
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 160c111e7d990dd981fb7b369bbe73e73d7f7994..cdf9ba0e4c141d746582099f16be4cc41badaacf 100644
+index dfc3d047f25499820f84d858ccc29c90f2fe3fbc..8d5118c14ed746f8fe25cc9ba2f891c6c763d0f5 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -477,7 +477,10 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
@@ -688,7 +688,7 @@ index 160c111e7d990dd981fb7b369bbe73e73d7f7994..cdf9ba0e4c141d746582099f16be4cc4
          // CraftBukkit start
 -        BlockEntity blockEntity = this.level.getCurrentWorldData().capturedTileEntities.get(pos); // Folia - region threading
 +        // BlockEntity blockEntity = this.level.getCurrentWorldData().capturedTileEntities.get(pos); // Folia - region threading
-+        BlockEntity blockEntity = java.util.Optional.of(this.level.getCurrentWorldData())
++        BlockEntity blockEntity = java.util.Optional.ofNullable(this.level.getCurrentWorldData())
 +                .map(data -> data.capturedTileEntities.get(pos))
 +                .orElse(null);
          if (blockEntity == null) {

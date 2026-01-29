@@ -22,38 +22,23 @@ index 08745a35b1ce8cc56d970472088de3cd17b9e43a..96637abe31b6801fbf4233af6cddbc58
                  metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
                      String minecraftVersion = Bukkit.getVersion();
 diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-index 1783f9ea48154dcc8971fc5ef088f5a8c0f0b2ff..167466e2978387b807717d2d2ca37ce1536859df 100644
+index 4d2936f6818c38e2844cba78ffad339e93ff29ab..49e0d0b8053988f4d09e0b3b03192990b00c7294 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-@@ -35,8 +35,7 @@ public class PaperVersionFetcher implements VersionFetcher {
-     private static final Logger LOGGER = LogUtils.getClassLogger();
+@@ -40,10 +40,10 @@ public class PaperVersionFetcher implements VersionFetcher {
+     private static final ComponentLogger COMPONENT_LOGGER = ComponentLogger.logger(LogManager.getRootLogger().getName());
      private static final int DISTANCE_ERROR = -1;
      private static final int DISTANCE_UNKNOWN = -2;
--    private static final String DOWNLOAD_PAGE = "https://papermc.io/downloads/paper";
--
+-    private static final String DOWNLOAD_PAGE = "https://papermc.io/downloads/folia"; // Folia
+-    private static final String REPOSITORY = "PaperMC/Folia"; // Folia
 +    private static final String DOWNLOAD_PAGE = "https://github.com/LunaDeerMC/DeerFolia/releases/latest";     // DeerFolia
-     @Override
-     public long getCacheTime() {
-         return 720000;
-@@ -46,14 +45,10 @@ public class PaperVersionFetcher implements VersionFetcher {
-     public Component getVersionMessage() {
-         final Component updateMessage;
-         final ServerBuildInfo build = ServerBuildInfo.buildInfo();
--        if (build.buildNumber().isEmpty() && build.gitCommit().isEmpty()) {
--            updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
--        } else {
--            updateMessage = getUpdateStatusMessage("PaperMC/Folia", build); // Folia
--        }
--        final @Nullable Component history = this.getHistory();
--
--        return history != null ? Component.textOfChildren(updateMessage, Component.newline(), history) : updateMessage;
-+        // DeerFolia start - Disable update check
-+        updateMessage = Component.text("DeerFolia current does not support update check", NamedTextColor.YELLOW);
-+        return updateMessage;
-+        // DeerFolia end - Disable update check
-     }
++    private static final String REPOSITORY = "LunaDeerMC/DeerFolia"; // Folia  // DeerFolia
+     private static final ServerBuildInfo BUILD_INFO = ServerBuildInfo.buildInfo();
+-    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://papermc.io)";
++    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://mc.lunadeer.cn/)";
+     private static final Gson GSON = new Gson();
  
-     private static Component getUpdateStatusMessage(final String repo, final ServerBuildInfo build) {
+     @Override
 diff --git a/src/main/java/com/destroystokyo/paper/console/PaperConsole.java b/src/main/java/com/destroystokyo/paper/console/PaperConsole.java
 index 6ee39b534b8d992655bc0cef3c299d12cbae0034..8fd162b6441ca1a6ee779d898ee854dc5b1343c5 100644
 --- a/src/main/java/com/destroystokyo/paper/console/PaperConsole.java

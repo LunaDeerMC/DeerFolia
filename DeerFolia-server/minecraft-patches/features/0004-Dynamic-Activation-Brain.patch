@@ -34,10 +34,10 @@ index e22bd0f080fa2de8b17aa4d79e1228e7cfa16fdd..08627458dda7836094fe91e9056d6c66
          }
      }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 455e4f95efc0c27e09d41d4a4deff5ab913433ee..2a2c3512b7a2bffff340dda2d00b190d7996ebd1 100644
+index 3471200d54b938ef82f142efc2fcb096d72ec7b4..f216c9b6134dc6cbeee8b9dbb4200d43adf0b263 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -850,6 +850,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -866,6 +866,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
              regionizedWorldData // Folia - regionised ticking
                  .forEachTickingEntity( // Folia - regionised ticking
                      entity -> {
@@ -46,7 +46,7 @@ index 455e4f95efc0c27e09d41d4a4deff5ab913433ee..2a2c3512b7a2bffff340dda2d00b190d
                              if (!tickRateManager.isEntityFrozen(entity)) {
                                  profilerFiller.push("checkDespawn");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 6dd28d91ea1cd7b57792a5a8b7e3fd509dcc1951..fc606e592359b8fc11a3de4bbe60297fcb5ce23b 100644
+index 13ad10845dc35fc4b0d0a22bd4e726ebfc9e98dc..20d7786d0db5442f129a93623addc239db48cffb 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -373,6 +373,8 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
@@ -71,7 +71,7 @@ index 0590d5723854a03a59fe9471710802f4e64e50b8..522284aecee5e3d8036a7aa56e13ec26
      private static <T extends Entity> EntityType<T> register(ResourceKey<EntityType<?>> key, EntityType.Builder<T> builder) {
          return Registry.register(BuiltInRegistries.ENTITY_TYPE, key, builder.build(key));
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 9168ec5cd066161a11eac9ed9d59dbfa5ea9988c..6fa83dd9b832d827eb904de640f1ec5322d9835a 100644
+index a10bff4f894e93a5307a76982adb145965da1030..3b83bd4277e146fcf51b258e647e696c073c36d4 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
 @@ -221,10 +221,10 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
