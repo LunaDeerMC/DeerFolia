@@ -1,6 +1,5 @@
 package cn.lunadeer.mc.deerfolia.async.path;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.pathfinder.Node;
@@ -8,7 +7,6 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,8 +17,6 @@ import java.util.function.Supplier;
  * I'll be using this to represent a path that not be processed yet!
  */
 public class AsyncPath extends Path {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     /**
      * marks whether this async path has been processed
@@ -55,7 +51,7 @@ public class AsyncPath extends Path {
      * <p>
      * while processing, we have no idea where this is so consumers of `Path` should check that the path is processed before checking the target block
      */
-    private @Nullable BlockPos target;
+    private BlockPos target;
     /**
      * how far we are to the target
      * <p>
@@ -121,33 +117,12 @@ public class AsyncPath extends Path {
 
         processState = PathProcessState.PROCESSING;
 
-        try {
-            final Path bestPath = this.pathSupplier.get();
-            
-            // Handle null path from supplier
-            if (bestPath == null) {
-                this.target = null;
-                this.distToTarget = 0;
-                this.canReach = false;
-                processState = PathProcessState.COMPLETED;
-                return;
-            }
+        final Path bestPath = this.pathSupplier.get();
 
-            // Handle null nodes list
-            if (bestPath.nodes != null) {
-                this.nodes.addAll(bestPath.nodes); // we mutate this list to reuse the logic in Path
-            }
-            this.target = bestPath.getTarget();
-            this.distToTarget = bestPath.getDistToTarget();
-            this.canReach = bestPath.canReach();
-        } catch (Exception e) {
-            // Log the error but don't crash - mark path as unreachable
-            LOGGER.warn("Error during async path processing: {}", e.getMessage());
-            // Use the first target position as a fallback, or null if none available
-            this.target = this.positions.isEmpty() ? null : this.positions.iterator().next();
-            this.distToTarget = 0;
-            this.canReach = false;
-        }
+        this.nodes.addAll(bestPath.nodes); // we mutate this list to reuse the logic in Path
+        this.target = bestPath.getTarget();
+        this.distToTarget = bestPath.getDistToTarget();
+        this.canReach = bestPath.canReach();
 
         processState = PathProcessState.COMPLETED;
 
@@ -171,7 +146,7 @@ public class AsyncPath extends Path {
      */
 
     @Override
-    public @Nullable BlockPos getTarget() {
+    public BlockPos getTarget() {
         this.checkProcessed();
 
         return this.target;
