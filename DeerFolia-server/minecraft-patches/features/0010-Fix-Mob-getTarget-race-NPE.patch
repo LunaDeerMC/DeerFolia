@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Wed, 4 Feb 2026 21:45:10 +0800
+Subject: [PATCH] Fix Mob getTarget race NPE
+
+
+diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
+index 3b83bd4277e146fcf51b258e647e696c073c36d4..5faf87bbdf3e3545614418bf12c02ef0590e1060 100644
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -255,10 +255,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+     @Override
+     public @Nullable LivingEntity getTarget() {
+         // Folia start - region threading
+-        if (this.target != null && (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.target) || this.target.isRemoved())) {
++        // DeerFolia start - avoid race NPE on target
++        LivingEntity target = this.target;
++        if (target != null && (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(target) || target.isRemoved())) {
+             this.target = null;
+             return null;
+         }
++        // DeerFolia end
+         // Folia end - region threading
+         return this.target;
+     }
