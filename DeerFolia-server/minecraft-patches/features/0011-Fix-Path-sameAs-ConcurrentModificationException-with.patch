@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Fri, 27 Feb 2026 11:54:47 +0800
+Subject: [PATCH] Fix Path sameAs ConcurrentModificationException with async
+ pathfinding
+
+
+diff --git a/net/minecraft/world/level/pathfinder/Path.java b/net/minecraft/world/level/pathfinder/Path.java
+index 6c19581e439c432572bfb87234cfc9081a5638f2..dc1c864a9721d0da8d386b3101cb4cec886b88b5 100644
+--- a/net/minecraft/world/level/pathfinder/Path.java
++++ b/net/minecraft/world/level/pathfinder/Path.java
+@@ -110,6 +110,9 @@ public class Path {
+ 
+     public boolean sameAs(@Nullable Path path) {
+         if (path == this) return true; // DeerFolia - petal - short circuit
++        // DeerFolia start - avoid ConcurrentModificationException with async pathfinding
++        if (!this.isProcessed() || (path != null && !path.isProcessed())) return false;
++        // DeerFolia end - avoid ConcurrentModificationException with async pathfinding
+         return path != null && this.nodes.equals(path.nodes);
+     }
+ 
