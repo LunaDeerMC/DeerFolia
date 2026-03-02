@@ -5,7 +5,7 @@ Subject: [PATCH] Rebranding
 
 
 diff --git a/net/minecraft/CrashReport.java b/net/minecraft/CrashReport.java
-index c2b6b0625095aa3645872eecbae4280bbadf85f2..6e511882fc1c1d42d674ff2342b8c5c855bb32fb 100644
+index ad10eda79e6b76fc1896b4cdb27546b515d1cfa4..5b7ef319c3eda1aa2562e06ae75f95e49cda5f70 100644
 --- a/net/minecraft/CrashReport.java
 +++ b/net/minecraft/CrashReport.java
 @@ -30,6 +30,7 @@ public class CrashReport {
@@ -15,8 +15,8 @@ index c2b6b0625095aa3645872eecbae4280bbadf85f2..6e511882fc1c1d42d674ff2342b8c5c8
 +    private final List<String> extraInfo = List.of("", "DO NOT REPORT THIS TO PAPER/FOLIA! REPORT TO DEERFOLIA INSTEAD!", ""); // DeerFolia - Rebrand
  
      public CrashReport(String title, Throwable exception) {
-         io.papermc.paper.util.StacktraceDeobfuscator.INSTANCE.deobfuscateThrowable(exception); // Paper
-@@ -130,7 +131,7 @@ public class CrashReport {
+         this.title = title;
+@@ -129,7 +130,7 @@ public class CrashReport {
      }
  
      public String getFriendlyReport(ReportType type) {
@@ -25,7 +25,7 @@ index c2b6b0625095aa3645872eecbae4280bbadf85f2..6e511882fc1c1d42d674ff2342b8c5c8
      }
  
      public @Nullable Path getSaveFile() {
-@@ -160,7 +161,7 @@ public class CrashReport {
+@@ -159,7 +160,7 @@ public class CrashReport {
      }
  
      public boolean saveToFile(Path path, ReportType type) {

@@ -9,6 +9,8 @@ build/
 /folia-api/build.gradle.kts
 /paper-server
 /paper-api
+/folia-server
+/folia-api
 
 ### IntelliJ IDEA ###
 /.idea
