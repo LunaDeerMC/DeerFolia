@@ -63,3 +63,9 @@ import org.bukkit.Location;
 ## Build Requirements
 - Java 21+ (toolchain managed by Gradle)
 - Upstream ref tracked in `gradle.properties` → `foliaRef`
+
+## Detailed Skills
+For detailed workflow guides, see `.github/skills/`:
+- `deerfolia-patch-dev` — Patch development and maintenance workflow
+- `deerfolia-add-feature` — Adding new features/optimizations end-to-end
+- `deerfolia-upstream-update` — Updating upstream Folia and resolving conflicts

@@ -134,11 +134,11 @@ ZombifiedPiglin:
 
 1. 修改相应位置源码；
 2. 提交修改（可以不写提交内容）；
-3. 在 `deer-folia-server` 或 `deer-folia-api` 目录中执行 `git rebase -i base` ，将刚才的提交移动到你想要修改的补丁提交下方；
+3. 在 `DeerFolia-server` 或 `DeerFolia-api` 目录中执行 `git rebase -i base` ，将刚才的提交移动到你想要修改的补丁提交下方；
 4. 将新提交的 `pick` 修改为如下内容：
    - `f`/`fixup`：将你的新修改合并到补丁内，但不改变补丁信息；
    - `s`/`squash`：将你的新修改合并到补丁内，并用新的补丁信息替换原补丁信息；
-5. 在跟项目目录执行 `./gradlew rebuildPatches` 应用补丁更新；
+5. 在跟项目目录执行 `./gradlew rebuildAllServerPatches` 应用补丁更新；
 
 #### 自动
 
