@@ -18,7 +18,7 @@
 +        upstream.patchRepo("paperServer") {
 +            upstreamRepo = fork.patchedRepo("paperServer")
 +            patchesDir = rootDirectory.dir("DeerFolia-server/paper-patches")
-+            outputDir = rootProject.layout.projectDirectory.dir("paper-server")
++            outputDir =rootDirectory.dir("paper-server")
 +        }
 +        upstream.patchDir("foliaServer") {
 +            upstreamPath = "folia-server"
@@ -30,7 +30,7 @@
 +                "build.gradle.kts.patch"
 +            )
 +            patchesDir = rootDirectory.dir("DeerFolia-server/folia-patches")
-+            outputDir = rootProject.layout.projectDirectory.dir("DeerFolia-server")
++            outputDir = rootDirectory.dir("folia-server")
 +        }
 +    }
 +    activeFork = deerFolia
