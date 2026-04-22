@@ -33,7 +33,7 @@ index 4d2936f6818c38e2844cba78ffad339e93ff29ab..49e0d0b8053988f4d09e0b3b03192990
 -    private static final String REPOSITORY = "PaperMC/Folia"; // Folia
 +    private static final String DOWNLOAD_PAGE = "https://github.com/LunaDeerMC/DeerFolia/releases/latest";     // DeerFolia
 +    private static final String REPOSITORY = "LunaDeerMC/DeerFolia"; // Folia  // DeerFolia
-     private static final ServerBuildInfo BUILD_INFO = ServerBuildInfo.buildInfo();
+     private static final ServerBuildInfo BUILD_INFO = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
 -    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://papermc.io)";
 +    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://mc.lunadeer.cn/)";
      private static final Gson GSON = new Gson();
@@ -68,6 +68,50 @@ index 10a0be7a4db1a51579d113d279af7a9effe7f438..8cda5d0a6d5ff1d6a1b22f41c5e91b68
              SharedConstants.getCurrentVersion().id(),
              SharedConstants.getCurrentVersion().name(),
              getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
+diff --git a/src/main/java/io/papermc/paper/PaperBootstrap.java b/src/main/java/io/papermc/paper/PaperBootstrap.java
+--- a/src/main/java/io/papermc/paper/PaperBootstrap.java
++++ b/src/main/java/io/papermc/paper/PaperBootstrap.java
+@@ -31,7 +31,7 @@ public final class PaperBootstrap {
+         final String osVersion = System.getProperty("os.version");
+         final String osArch = System.getProperty("os.arch");
+ 
+-        final ServerBuildInfo bi = ServerBuildInfo.buildInfo();
++        final ServerBuildInfo bi = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
+         return List.of(
+             String.format(
+                 "Running Java %s (%s %s; %s %s) on %s %s (%s)",
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java b/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
+--- a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
+@@ -18,7 +18,7 @@ public class CraftCrashReport implements Supplier<String> {
+ 
+     @Override
+     public String get() {
+-        final io.papermc.paper.ServerBuildInfo build = io.papermc.paper.ServerBuildInfo.buildInfo();
++        final io.papermc.paper.ServerBuildInfo build = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
+         StringWriter value = new StringWriter();
+         try {
+             value.append("\n   BrandInfo: ").append(String.format("%s (%s) version %s", build.brandName(), build.brandId(), build.asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_FULL)));
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -261,7 +261,7 @@ public final class CraftServer implements Server {
+-    private final String serverName = io.papermc.paper.ServerBuildInfo.buildInfo().brandName();
++    private final String serverName = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo().brandName(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
+     private final String serverVersion;
+     private final String bukkitVersion = Versioning.getBukkitVersion();
+     private final Logger logger = Logger.getLogger("Minecraft");
+@@ -403,7 +403,7 @@ public CraftServer(DedicatedServer console, PlayerList playerList) {
+             public CraftPlayer apply(ServerPlayer player) {
+                 return player.getBukkitEntity();
+             }
+-        }));
+-        this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
++        }));
++        this.serverVersion = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
+         this.structureManager = new CraftStructureManager(console.getStructureManager(), console.registryAccess());
+         this.serverTickManager = new CraftServerTickManager(console.tickRateManager());
+         this.serverLinks = new CraftServerLinks(console);
 diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
 index c4dcddc4db02ed3641d05fae31ead7c13205f841..d2d1e28ea6759579a1415da6a4596a408a42553c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java

@@ -6,16 +6,27 @@ Subject: [PATCH] Fix Path sameAs ConcurrentModificationException with async
 
 
 diff --git a/net/minecraft/world/level/pathfinder/Path.java b/net/minecraft/world/level/pathfinder/Path.java
-index 6c19581e439c432572bfb87234cfc9081a5638f2..dc1c864a9721d0da8d386b3101cb4cec886b88b5 100644
+index 4aaaa67d9b64f1795224bd6be9ccf072a4ca1ce5..46c5a94a7912b31ecbe22427534f89c794942db4 100644
 --- a/net/minecraft/world/level/pathfinder/Path.java
 +++ b/net/minecraft/world/level/pathfinder/Path.java
-@@ -110,6 +110,9 @@ public class Path {
+@@ -105,6 +105,7 @@ public class Path {
  
-     public boolean sameAs(@Nullable Path path) {
+     public boolean sameAs(final @Nullable Path path) {
          if (path == this) return true; // DeerFolia - petal - short circuit
-+        // DeerFolia start - avoid ConcurrentModificationException with async pathfinding
-+        if (!this.isProcessed() || (path != null && !path.isProcessed())) return false;
-+        // DeerFolia end - avoid ConcurrentModificationException with async pathfinding
++        if (!this.isProcessed() || (path != null && !path.isProcessed())) return false; // DeerFolia - avoid ConcurrentModificationException with async pathfinding
          return path != null && this.nodes.equals(path.nodes);
      }
  
+diff --git a/net/minecraft/world/level/entity/EntitySectionStorage.java b/net/minecraft/world/level/entity/EntitySectionStorage.java
+index 7d9d73e55ae219d7ac2a4b28f8f1d6ad3be40886..693b27393fb1548e0dd999a02b56dbd1c5dfa205 100644
+--- a/net/minecraft/world/level/entity/EntitySectionStorage.java
++++ b/net/minecraft/world/level/entity/EntitySectionStorage.java
+@@ -132,7 +132,7 @@ public class EntitySectionStorage<T extends EntityAccess> {
+     }
+ 
+     public <U extends T> void getEntities(final EntityTypeTest<T, U> type, final AABB bb, final AbortableIterationConsumer<U> consumer) {
+-        this.forEachAccessibleNonEmptySection(bb, section -> // $VF: Couldn't be decompiled);
++        this.forEachAccessibleNonEmptySection(bb, section -> section.getEntities(type, bb, consumer));
+     }
+ 
+     public void remove(final long sectionKey) {

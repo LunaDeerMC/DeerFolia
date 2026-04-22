@@ -1,6 +1,7 @@
 package cn.lunadeer.mc.deerfolia.async.path;
 
 import cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration;
+import net.minecraft.world.entity.Entity;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.minecraft.world.level.pathfinder.Path;
 import org.jetbrains.annotations.NotNull;
@@ -36,13 +37,17 @@ public class AsyncPathProcessor {
      * @param path            a path to wait on
      * @param afterProcessing a consumer to be called
      */
-    public static void awaitProcessing(@Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
+    private static void schedule(@NotNull Entity entity, @Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
+        entity.getBukkitEntity().taskScheduler.scheduleOrExecute(nmsEntity -> afterProcessing.accept(path));
+    }
+
+    public static void awaitProcessing(@NotNull Entity entity, @Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
         if (path != null && !path.isProcessed() && path instanceof AsyncPath asyncPath) {
             asyncPath.postProcessing(() ->
-                    afterProcessing.accept(path)
+                    schedule(entity, path, afterProcessing)
             );
         } else {
-            afterProcessing.accept(path);
+            schedule(entity, path, afterProcessing);
         }
     }
 }

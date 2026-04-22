@@ -5,10 +5,10 @@ Subject: [PATCH] Kaiiju Entity Throttling
 
 
 diff --git a/io/papermc/paper/threadedregions/RegionizedWorldData.java b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-index 1f49d787ecee4ba9dce087036a4e3cbce2228c17..b974742a0fb2dc18cfc9a61159ab0a2567a4dca4 100644
+index bc946ce8f24d7654eefd77a99ac9d037f3d0fb7e..a56a74c8a322a80eb17e72b77594dbb2e3891080 100644
 --- a/io/papermc/paper/threadedregions/RegionizedWorldData.java
 +++ b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-@@ -358,6 +358,7 @@ public final class RegionizedWorldData {
+@@ -351,6 +351,7 @@ public final class RegionizedWorldData {
      private final IteratorSafeOrderedReferenceSet<Mob> navigatingMobs = new IteratorSafeOrderedReferenceSet<>();
      public final ReferenceList<Entity> trackerEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
      public final ReferenceList<Entity> trackerUnloadedEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
@@ -16,19 +16,26 @@ index 1f49d787ecee4ba9dce087036a4e3cbce2228c17..b974742a0fb2dc18cfc9a61159ab0a25
  
      // block ticking
      private final ObjectLinkedOpenHashSet<BlockEventData> blockEvents = new ObjectLinkedOpenHashSet<>();
+@@ -765,4 +766,4 @@ public final class RegionizedWorldData {
+     public int getChunkCount() {
+         return this.chunks.size();
+     }
+-}
+\ No newline at end of file
++}
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index f216c9b6134dc6cbeee8b9dbb4200d43adf0b263..151df4205df53fa4ab8ba13a8a39c59849d240de 100644
+index d9bfe0d13d4fc8090a7d5042d78bb82885a9d36f..3856bc9c573c308afeb4e9637984beed9bb6cd0f 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -859,6 +859,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
-                 } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.DRAGON_FIGHT_TICK); } // Folia - profiler
+@@ -913,6 +913,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+                 } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.DRAGON_FIGHT_TICK); } // Folia - profiler
              }
  
 +            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.kaiijuEntityThrottling) regionizedWorldData.entityThrottler.tickLimiterStart(); // Kaiiju
-             profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); try { // Folia - profiler
+             foliaProfiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); try { // Folia - profiler
              io.papermc.paper.entity.activation.ActivationRange.activateEntities(this); // Paper - EAR
-             } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
-@@ -883,6 +884,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
+@@ -937,6 +938,13 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
                                          entity.stopRiding();
                                      }
  
@@ -39,14 +46,14 @@ index f216c9b6134dc6cbeee8b9dbb4200d43adf0b263..151df4205df53fa4ab8ba13a8a39c598
 +                                        if (throttle.skip) return;
 +                                    }
 +                                    // Kaiiju end
-                                     profilerFiller.push("tick");
+                                     profiler.push("tick");
                                      this.guardEntityTick(this::tickNonPassenger, entity);
-                                     profilerFiller.pop();
-@@ -892,6 +900,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+                                     profiler.pop();
+@@ -946,6 +954,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
                      }
                  );
-             } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); } // Folia - profiler
+             } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); } // Folia - profiler
 +            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.kaiijuEntityThrottling) regionizedWorldData.entityThrottler.tickLimiterFinish(regionizedWorldData); // Kaiiju
-             profilerFiller.popPush("blockEntities");
-             profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.TILE_ENTITY); try { // Folia - profiler
+             profiler.popPush("blockEntities");
+             foliaProfiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.TILE_ENTITY); try { // Folia - profiler
              this.tickBlockEntities();

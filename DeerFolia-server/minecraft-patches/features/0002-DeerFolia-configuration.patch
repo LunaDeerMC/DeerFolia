@@ -5,10 +5,10 @@ Subject: [PATCH] DeerFolia configuration
 
 
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
-index 3d8290b952e4341211ef8e669372bf7ea1c4bf62..d550b2d58de031eb470a9452af7e0f37caf739b4 100644
+index 5f89d29eaeeb4c63b8b9e034d440204f518efec2..7b4153041411dbb46f69e82667262644bf5e4a20 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -261,6 +261,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -282,6 +282,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
          this.paperConfigurations.initializeGlobalConfiguration(this.registryAccess());
          this.paperConfigurations.initializeWorldDefaultsConfiguration(this.registryAccess());
          // Paper end - initialize global and world-defaults configuration

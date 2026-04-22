@@ -5,7 +5,7 @@ Subject: [PATCH] Rebranding
 
 
 diff --git a/net/minecraft/CrashReport.java b/net/minecraft/CrashReport.java
-index ad10eda79e6b76fc1896b4cdb27546b515d1cfa4..5b7ef319c3eda1aa2562e06ae75f95e49cda5f70 100644
+index 84247ddc9e063676c59a6e62da1eb919320bd18f..d0d5d08dbc09c436f2ac6eccc331465238946d67 100644
 --- a/net/minecraft/CrashReport.java
 +++ b/net/minecraft/CrashReport.java
 @@ -30,6 +30,7 @@ public class CrashReport {
@@ -14,28 +14,28 @@ index ad10eda79e6b76fc1896b4cdb27546b515d1cfa4..5b7ef319c3eda1aa2562e06ae75f95e4
      private final SystemReport systemReport = new SystemReport();
 +    private final List<String> extraInfo = List.of("", "DO NOT REPORT THIS TO PAPER/FOLIA! REPORT TO DEERFOLIA INSTEAD!", ""); // DeerFolia - Rebrand
  
-     public CrashReport(String title, Throwable exception) {
+     public CrashReport(final String title, final Throwable t) {
          this.title = title;
 @@ -129,7 +130,7 @@ public class CrashReport {
      }
  
-     public String getFriendlyReport(ReportType type) {
--        return this.getFriendlyReport(type, List.of());
-+        return this.getFriendlyReport(type, extraInfo); // DeerFolia - Rebrand
+     public String getFriendlyReport(final ReportType reportType) {
+-        return this.getFriendlyReport(reportType, List.of());
++        return this.getFriendlyReport(reportType, this.extraInfo); // DeerFolia - Rebrand
      }
  
      public @Nullable Path getSaveFile() {
 @@ -159,7 +160,7 @@ public class CrashReport {
      }
  
-     public boolean saveToFile(Path path, ReportType type) {
--        return this.saveToFile(path, type, List.of());
-+        return this.saveToFile(path, type, extraInfo);  // DeerFolia - Rebrand
+     public boolean saveToFile(final Path file, final ReportType reportType) {
+-        return this.saveToFile(file, reportType, List.of());
++        return this.saveToFile(file, reportType, this.extraInfo); // DeerFolia - Rebrand
      }
  
      public SystemReport getSystemReport() {
 diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-index 1e9e061ec694ad64fc2724b83a66dfec7e069a43..9171fedb498d468ce8136239d63eed569850e44a 100644
+index eae4963b6d18c5f92871477b93f81c2c79331cd9..3e220a5d13ac0740ceabd7af13a64b825787861e 100644
 --- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 @@ -309,7 +309,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise

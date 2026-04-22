@@ -5,10 +5,10 @@ Subject: [PATCH] Fix Mob getTarget race NPE
 
 
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 3b83bd4277e146fcf51b258e647e696c073c36d4..5faf87bbdf3e3545614418bf12c02ef0590e1060 100644
+index 15e91612b441b45b9a211d2709cdbaf76d067d2a..b1ce239583ac7d0c809fc3aae0c614712390292b 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -255,10 +255,13 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -256,10 +256,13 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      @Override
      public @Nullable LivingEntity getTarget() {
          // Folia start - region threading
@@ -19,7 +19,7 @@ index 3b83bd4277e146fcf51b258e647e696c073c36d4..5faf87bbdf3e3545614418bf12c02ef0
              this.target = null;
              return null;
          }
-+        // DeerFolia end
++        // DeerFolia end - avoid race NPE on target
          // Folia end - region threading
-         return this.target;
+         return this.asValidTarget(this.target);
      }

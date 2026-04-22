@@ -5,10 +5,10 @@ Subject: [PATCH] Fix piston ghost block
 
 
 diff --git a/net/minecraft/world/item/context/BlockPlaceContext.java b/net/minecraft/world/item/context/BlockPlaceContext.java
-index df2784b7a100beb7448a20264de6e617579a39f8..857f818bbd9b76d18b734a9f736af2b214e366e7 100644
+index 5abe81e49e8881b795eb32b4a0ced91b80e65156..451274342a95a3a44202f82c58b232794faed0da 100644
 --- a/net/minecraft/world/item/context/BlockPlaceContext.java
 +++ b/net/minecraft/world/item/context/BlockPlaceContext.java
-@@ -51,6 +51,15 @@ public class BlockPlaceContext extends UseOnContext {
+@@ -53,6 +53,15 @@ public class BlockPlaceContext extends UseOnContext {
      }
  
      public boolean canPlace() {

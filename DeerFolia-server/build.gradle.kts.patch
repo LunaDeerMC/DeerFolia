@@ -1,14 +1,14 @@
 --- a/folia-server/build.gradle.kts
 +++ b/folia-server/build.gradle.kts
-@@ -23,6 +_,7 @@
+@@ -24,6 +24,7 @@
      gitFilePatches = false
-     
+ 
      val fork = forks.register("folia") {
 +        rootDirectory = upstreamsDirectory().map { it.dir("folia") }
          upstream.patchDir("paperServer") {
              upstreamPath = "paper-server"
              excludes = setOf("src/minecraft", "patches", "build.gradle.kts")
-@@ -31,7 +_,27 @@
+@@ -32,7 +33,27 @@
          }
      }
  
@@ -18,7 +18,7 @@
 +        upstream.patchRepo("paperServer") {
 +            upstreamRepo = fork.patchedRepo("paperServer")
 +            patchesDir = rootDirectory.dir("DeerFolia-server/paper-patches")
-+            outputDir = rootDirectory.dir("paper-server")
++            outputDir = rootProject.layout.projectDirectory.dir("paper-server")
 +        }
 +        upstream.patchDir("foliaServer") {
 +            upstreamPath = "folia-server"
@@ -30,23 +30,23 @@
 +                "build.gradle.kts.patch"
 +            )
 +            patchesDir = rootDirectory.dir("DeerFolia-server/folia-patches")
-+            outputDir = rootDirectory.dir("folia-server")
++            outputDir = rootProject.layout.projectDirectory.dir("DeerFolia-server")
 +        }
 +    }
 +    activeFork = deerFolia
  
  
-     spigot {
-@@ -151,7 +_,7 @@
+     updatingMinecraft {
+@@ -134,7 +155,7 @@
  }
  
  dependencies {
 -    implementation(project(":folia-api"))
 +    implementation(project(":DeerFolia-api"))
-     implementation("ca.spottedleaf:concurrentutil:0.0.8")
+     implementation("ca.spottedleaf:concurrentutil:0.0.10")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
-@@ -208,6 +_,9 @@
+@@ -182,6 +203,9 @@
      // Spark
      implementation("me.lucko:spark-api:0.1-20240720.200737-2")
      implementation("me.lucko:spark-paper:1.10.152")
@@ -56,7 +56,7 @@
  }
  
  tasks.jar {
-@@ -222,14 +_,14 @@
+@@ -196,14 +220,14 @@
          val gitBranch = git.exec(providers, "rev-parse", "--abbrev-ref", "HEAD").get().trim()
          attributes(
              "Main-Class" to "org.bukkit.craftbukkit.Main",
