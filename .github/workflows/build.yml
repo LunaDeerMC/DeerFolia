@@ -28,10 +28,10 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew applyAllPatches
-      - name: "Build Mojmap"
-        run: ./gradlew createMojmapPaperclipJar
+      - name: "Build & Package"
+        run: ./gradlew createPaperclipJar
       - name: "Copy jar to staging"
-        run: mkdir staging && cp DeerFolia-server/build/libs/DeerFolia-paperclip-*-mojmap.jar staging/
+        run: mkdir staging && cp DeerFolia-server/build/libs/DeerFolia-paperclip-*.jar staging/
       - name: "Rename file to DeerFolia-{git tag name}.jar"
         run: |
           GIT_TAG=$(git describe --tags --abbrev=0)
