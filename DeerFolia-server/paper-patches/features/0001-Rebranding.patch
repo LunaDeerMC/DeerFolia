@@ -22,7 +22,7 @@ index 08745a35b1ce8cc56d970472088de3cd17b9e43a..96637abe31b6801fbf4233af6cddbc58
                  metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
                      String minecraftVersion = Bukkit.getVersion();
 diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-index 4d2936f6818c38e2844cba78ffad339e93ff29ab..49e0d0b8053988f4d09e0b3b03192990b00c7294 100644
+index 4d2936f6818c38e2844cba78ffad339e93ff29ab..b75cd97c70cbeb90a82d5a2b9099eaa30791d984 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 @@ -40,10 +40,10 @@ public class PaperVersionFetcher implements VersionFetcher {
@@ -31,10 +31,11 @@ index 4d2936f6818c38e2844cba78ffad339e93ff29ab..49e0d0b8053988f4d09e0b3b03192990
      private static final int DISTANCE_UNKNOWN = -2;
 -    private static final String DOWNLOAD_PAGE = "https://papermc.io/downloads/folia"; // Folia
 -    private static final String REPOSITORY = "PaperMC/Folia"; // Folia
+-    private static final ServerBuildInfo BUILD_INFO = ServerBuildInfo.buildInfo();
+-    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://papermc.io)";
 +    private static final String DOWNLOAD_PAGE = "https://github.com/LunaDeerMC/DeerFolia/releases/latest";     // DeerFolia
 +    private static final String REPOSITORY = "LunaDeerMC/DeerFolia"; // Folia  // DeerFolia
-     private static final ServerBuildInfo BUILD_INFO = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
--    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://papermc.io)";
++    private static final ServerBuildInfo BUILD_INFO = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
 +    private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://mc.lunadeer.cn/)";
      private static final Gson GSON = new Gson();
  
@@ -52,6 +53,19 @@ index 6ee39b534b8d992655bc0cef3c299d12cbae0034..8fd162b6441ca1a6ee779d898ee854dc
                  .variable(LineReader.HISTORY_FILE, java.nio.file.Paths.get(".console_history"))
                  .completer(new ConsoleCommandCompleter(this.server))
                  .option(LineReader.Option.COMPLETE_IN_WORD, true);
+diff --git a/src/main/java/io/papermc/paper/PaperBootstrap.java b/src/main/java/io/papermc/paper/PaperBootstrap.java
+index d543b1b107ab8d3eeb1fc3c1cadf489928d2786e..3f6e3515268ba4b74d7ae18aba603d3b36b913ee 100644
+--- a/src/main/java/io/papermc/paper/PaperBootstrap.java
++++ b/src/main/java/io/papermc/paper/PaperBootstrap.java
+@@ -31,7 +31,7 @@ public final class PaperBootstrap {
+         final String osVersion = System.getProperty("os.version");
+         final String osArch = System.getProperty("os.arch");
+ 
+-        final ServerBuildInfo bi = ServerBuildInfo.buildInfo();
++        final ServerBuildInfo bi = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
+         return List.of(
+             String.format(
+                 "Running Java %s (%s %s; %s %s) on %s %s (%s)",
 diff --git a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
 index 10a0be7a4db1a51579d113d279af7a9effe7f438..8cda5d0a6d5ff1d6a1b22f41c5e91b684a21f5a1 100644
 --- a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
@@ -68,19 +82,8 @@ index 10a0be7a4db1a51579d113d279af7a9effe7f438..8cda5d0a6d5ff1d6a1b22f41c5e91b68
              SharedConstants.getCurrentVersion().id(),
              SharedConstants.getCurrentVersion().name(),
              getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
-diff --git a/src/main/java/io/papermc/paper/PaperBootstrap.java b/src/main/java/io/papermc/paper/PaperBootstrap.java
---- a/src/main/java/io/papermc/paper/PaperBootstrap.java
-+++ b/src/main/java/io/papermc/paper/PaperBootstrap.java
-@@ -31,7 +31,7 @@ public final class PaperBootstrap {
-         final String osVersion = System.getProperty("os.version");
-         final String osArch = System.getProperty("os.arch");
- 
--        final ServerBuildInfo bi = ServerBuildInfo.buildInfo();
-+        final ServerBuildInfo bi = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
-         return List.of(
-             String.format(
-                 "Running Java %s (%s %s; %s %s) on %s %s (%s)",
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java b/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
+index 144079a7a002d7a8c24df879a231585656aaff91..08efd2b794208f5ceda80fa486a8c0d34dcd237e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
 @@ -18,7 +18,7 @@ public class CraftCrashReport implements Supplier<String> {
@@ -93,21 +96,23 @@ diff --git a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java b/src/ma
          try {
              value.append("\n   BrandInfo: ").append(String.format("%s (%s) version %s", build.brandName(), build.brandId(), build.asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_FULL)));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 1b8fa0f2b8f4cd5ab1b43893d20499a9e67e1f28..7b46c2fd77d1c268997952922b7cd2fea8faf969 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -261,7 +261,7 @@ public final class CraftServer implements Server {
+@@ -261,7 +261,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
+ import org.yaml.snakeyaml.error.MarkedYAMLException;
+ 
+ public final class CraftServer implements Server {
 -    private final String serverName = io.papermc.paper.ServerBuildInfo.buildInfo().brandName();
 +    private final String serverName = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo().brandName(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
      private final String serverVersion;
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
-@@ -403,7 +403,7 @@ public CraftServer(DedicatedServer console, PlayerList playerList) {
-             public CraftPlayer apply(ServerPlayer player) {
+@@ -403,7 +403,7 @@ public final class CraftServer implements Server {
                  return player.getBukkitEntity();
              }
--        }));
+         }));
 -        this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
-+        }));
 +        this.serverVersion = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
          this.structureManager = new CraftStructureManager(console.getStructureManager(), console.registryAccess());
          this.serverTickManager = new CraftServerTickManager(console.tickRateManager());
@@ -126,7 +131,7 @@ index c4dcddc4db02ed3641d05fae31ead7c13205f841..d2d1e28ea6759579a1415da6a4596a40
                  // (async tasks must live with race-conditions if they attempt to cancel between these few lines of code)
              }
 diff --git a/src/main/java/org/spigotmc/WatchdogThread.java b/src/main/java/org/spigotmc/WatchdogThread.java
-index 3e73e674823b34879572135eaa6ab47807c29023..7833e883f26a7c489c6b9ac46d0a5daa1f9f7722 100644
+index 1ae6be6da9834168ac93c56007d63ec096f11762..54542848e559f44cbed696ba9cb489137379b62f 100644
 --- a/src/main/java/org/spigotmc/WatchdogThread.java
 +++ b/src/main/java/org/spigotmc/WatchdogThread.java
 @@ -25,7 +25,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
