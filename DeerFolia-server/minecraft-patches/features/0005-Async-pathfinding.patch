@@ -15,7 +15,7 @@ index a8f2b22436ff0f4bff06b2c5cf01375da755cfde..758b69aeff096183fa07d43e5b34ec00
 +                                // DeerFolia start - petal - Async path processing
 +                                if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.asyncPathfinding.enabled) {
 +                                    Path possiblePath = findPathToPois(body, poiPositions);
-+                                    cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(body, possiblePath, path -> {
++                                    cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(possiblePath, path -> {
 +                                        if (path == null || !path.canReach()) {
 +                                            for (Pair<Holder<PoiType>, BlockPos> p : poiPositions) {
 +                                                batchCache.computeIfAbsent(
@@ -202,7 +202,7 @@ index 843d6897a43ed9e9d28b29608401b78266f57f61..d570c5e6930ab898847556bf213e3b13
 +                                // DeerFolia start - petal - Async path processing
 +                                if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.asyncPathfinding.enabled) {
 +                                    Path possiblePath = AcquirePoi.findPathToPois(body, pois);
-+                                    cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(body, possiblePath, path -> {
++                                    cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(possiblePath, path -> {
 +                                        if ((path == null || !path.canReach()) && triedCount.intValue() < BATCH_SIZE) {
 +                                            batchCache.long2LongEntrySet().removeIf(entry -> entry.getLongValue() < lastUpdate.longValue());
 +                                            return;
@@ -368,7 +368,7 @@ index 21ead01c326b187dc1117b549dbdf706730a2147..75365501dad75af2764fcfd6e464657c
 +                if (!targets.isEmpty()) {
 +                    this.targetPos = targets.iterator().next();
 +                }
-+                cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(this.mob, path, processedPath -> {
++                cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(path, processedPath -> {
 +                    if (processedPath != this.path) {
 +                        return;
 +                    }
@@ -468,7 +468,7 @@ index f47e879913fc23e1c741366fc8e77ca15192d832..0b243158a4a940716829e31f5ff1b589
 +            // DeerFolia start - await on async path processing
 +            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.asyncPathfinding.enabled) {
 +                Path possiblePath = AcquirePoi.findPathToPois(body, pois);
-+                cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(body, possiblePath, path -> {
++                cn.lunadeer.mc.deerfolia.async.path.AsyncPathProcessor.awaitProcessing(possiblePath, path -> {
 +                    if ((path == null || !path.canReach()) && this.triedCount < 5) {
 +                        this.batchCache.long2LongEntrySet().removeIf(entry -> entry.getLongValue() < this.lastUpdate);
 +                        return;
