@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -120,6 +122,7 @@ public final class AfkNetworkManager {
             state.afk = false;
             state.bypassDepth = 0;
             state.afkSessionCounter.reset(System.currentTimeMillis());
+            state.afkEntryTrackedEntityIds.clear();
             resetSuppressedSinceRefresh(state);
         }
     }
@@ -144,6 +147,9 @@ public final class AfkNetworkManager {
         if (!isAfk(player, state, now, config.afkThresholdTicks)) {
             state.afk = false;
             state.afkSessionCounter.reset(now);
+            if (!state.awaitingPostAfkResync) {
+                state.afkEntryTrackedEntityIds.clear();
+            }
             resetSuppressedSinceRefresh(state);
             return false;
         }
@@ -403,19 +409,21 @@ public final class AfkNetworkManager {
             final long sessionSavedTraffic = state.afkSessionCounter.totalBytes();
             final long sessionSavedBandwidth = state.afkSessionCounter.peakBytesPerSecond();
             state.afk = false;
+            state.awaitingPostAfkResync = true;
             resetSuppressedSinceRefresh(state);
             state.afkSessionCounter.reset(now);
             sendConfiguredMessage(player, state, DeerFoliaConfiguration.afkNetworkOptimization.afkExitMessage, sessionSavedTraffic, sessionSavedBandwidth);
-            if (DeerFoliaConfiguration.afkNetworkOptimization.resyncOnResume) {
-                resyncAll(player, state);
-            }
+            resyncAfterAfk(player, state, DeerFoliaConfiguration.afkNetworkOptimization.resyncOnResume);
         }
     }
 
     private static void enterAfk(final ServerPlayer player, final RuntimeState state, final long now) {
         state.afk = true;
+        state.awaitingPostAfkResync = false;
         state.afkSessionCounter.reset(now);
         resetSuppressedSinceRefresh(state);
+        state.afkEntryTrackedEntityIds.clear();
+        state.afkEntryTrackedEntityIds.addAll(collectTrackedEntityIds(player));
         sendConfiguredMessage(player, state, DeerFoliaConfiguration.afkNetworkOptimization.afkEnterMessage, 0L, 0L);
     }
 
@@ -533,17 +541,30 @@ public final class AfkNetworkManager {
         schedulePlayerTask(player, () -> {
             switch (category) {
                 case CHUNK_STREAM, BLOCK_UPDATES -> resendVisibleChunks(player, state);
-                case ENTITY_STREAM -> resendVisibleEntities(player, state);
+                case ENTITY_STREAM -> refreshVisibleEntities(player, state);
                 case WORLD_EFFECTS, UI_STREAM -> {
                 }
             }
         });
     }
 
-    private static void resyncAll(final ServerPlayer player, final RuntimeState state) {
+    private static void resyncAfterAfk(final ServerPlayer player, final RuntimeState state, final boolean fullResync) {
         schedulePlayerTask(player, () -> {
-            resendVisibleChunks(player, state);
-            resendVisibleEntities(player, state);
+            try {
+                final Set<Integer> currentTrackedEntityIds = collectTrackedEntityIds(player);
+                final Set<Integer> staleTrackedEntityIds = new HashSet<>(state.afkEntryTrackedEntityIds);
+                staleTrackedEntityIds.removeAll(currentTrackedEntityIds);
+                if (!staleTrackedEntityIds.isEmpty()) {
+                    sendExplicitEntityRemovals(player, state, staleTrackedEntityIds);
+                }
+                if (fullResync) {
+                    resendVisibleChunks(player, state);
+                    resendVisibleEntities(player, state);
+                }
+            } finally {
+                state.afkEntryTrackedEntityIds.clear();
+                state.awaitingPostAfkResync = false;
+            }
         });
     }
 
@@ -601,6 +622,40 @@ public final class AfkNetworkManager {
         });
     }
 
+    private static void refreshVisibleEntities(final ServerPlayer player, final RuntimeState state) {
+        final Set<Integer> currentTrackedEntityIds = collectTrackedEntityIds(player);
+        final Set<Integer> staleTrackedEntityIds = new HashSet<>(state.afkEntryTrackedEntityIds);
+        staleTrackedEntityIds.removeAll(currentTrackedEntityIds);
+        if (!staleTrackedEntityIds.isEmpty()) {
+            sendExplicitEntityRemovals(player, state, staleTrackedEntityIds);
+        }
+        resendVisibleEntities(player, state);
+        state.afkEntryTrackedEntityIds.clear();
+        state.afkEntryTrackedEntityIds.addAll(currentTrackedEntityIds);
+    }
+
+    private static Set<Integer> collectTrackedEntityIds(final ServerPlayer player) {
+        final ServerLevel level = (ServerLevel) player.level();
+        final Set<Integer> trackedEntityIds = new HashSet<>();
+        for (final Entity entity : level.getAllEntities()) {
+            if (entity == player || entity.isRemoved()) {
+                continue;
+            }
+
+            final ChunkMap.TrackedEntity tracker = entity.moonrise$getTrackedEntity();
+            if (tracker == null || !tracker.seenBy.contains(player.connection)) {
+                continue;
+            }
+
+            trackedEntityIds.add(entity.getId());
+        }
+        return trackedEntityIds;
+    }
+
+    private static void sendExplicitEntityRemovals(final ServerPlayer player, final RuntimeState state, final Set<Integer> entityIds) {
+        withBypass(state, () -> player.connection.send(new ClientboundRemoveEntitiesPacket(entityIds.stream().mapToInt(Integer::intValue).toArray())));
+    }
+
     private static void withBypass(final RuntimeState state, final Runnable action) {
         state.bypassDepth++;
         try {
@@ -637,9 +692,11 @@ public final class AfkNetworkManager {
     private static final class RuntimeState {
         private volatile long lastActivityMillis = System.currentTimeMillis();
         private volatile boolean afk;
+        private volatile boolean awaitingPostAfkResync;
         private volatile int bypassDepth;
         private final EnumMap<AfkSuppressibleCategory, Long> suppressedSinceRefresh = new EnumMap<>(AfkSuppressibleCategory.class);
         private final TrafficCounter afkSessionCounter = new TrafficCounter();
+        private final Set<Integer> afkEntryTrackedEntityIds = ConcurrentHashMap.newKeySet();
 
         private RuntimeState() {
             resetSuppressedSinceRefresh(this);
