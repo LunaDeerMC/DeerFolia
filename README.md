@@ -89,6 +89,8 @@ ZombifiedPiglin:
 afk-network-optimization:
    enabled: true
    afk-threshold-ticks: 1200
+   afk-enter-message: "&7[AFKNet] &eYou are now AFK. &7DeerFolia will temporarily suppress non-essential packets to save bandwidth."
+   afk-exit-message: "&7[AFKNet] &aWelcome back! &7During this AFK session, you saved &b{saved_traffic} &7of traffic and up to &b{saved_bandwidth} &7of bandwidth. &aThanks for helping the server."
    count-look-changes-as-activity: true
    resync-on-resume: true
    stats-enabled: true
@@ -97,6 +99,8 @@ afk-network-optimization:
 ```
 
 - `afk-threshold-ticks`：玩家连续多少 tick 无活动后进入 AFK；
+- `afk-enter-message`：玩家首次进入挂机状态时发送的提醒消息；留空可禁用；支持占位符 `{player}`，也支持 `&7`、`&a` 这类传统颜色代码，以及 `&#55FFFF` 这类十六进制颜色；
+- `afk-exit-message`：玩家恢复活动时发送的提醒消息；留空可禁用；支持 `{player}`、`{saved_traffic}`、`{saved_bandwidth}`，其中流量/带宽按**本次 AFK 会话**统计；同样支持颜色代码；
 - `count-look-changes-as-activity`：仅转头/移动视角是否算恢复活动；
 - `suppression-whitelist-categories`：AFK 时仍然继续发送、不参与抑制的类别白名单；
 - `max-suppressed-bytes-before-category-resync`：单玩家单类别累计抑制到指定字节数后，提前做一次局部补同步；设置为 `-1` 表示无限制抑制。
@@ -121,7 +125,7 @@ afk-network-optimization:
 1. 克隆本仓库到本地；
 2. 在终端执行 `./gradlew applyAllPatches` 应用补丁；
 3. 完成后会在项目目录下生成 `DeerFolia-server` 和 `DeerFolia-api` ，前者即为源码目录;
-4. 执行 `./gradlew createMojmapPaperclipJar` ，完成后会在 `DeerFolia-server/build/libs` 下生成服务器核心文件；
+4. 执行 `./gradlew createPaperclipJar` ，完成后会在 `DeerFolia-server/build/libs` 下生成服务器核心文件；
 
 ## 如何添加新补丁
 

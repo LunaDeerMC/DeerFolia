@@ -13,12 +13,16 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.CompressionEncoder;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketEncoder;
 import net.minecraft.network.ProtocolInfo;
 import net.minecraft.network.Varint21LengthFieldPrepender;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.BundlePacket;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -115,6 +119,7 @@ public final class AfkNetworkManager {
         if (state != null) {
             state.afk = false;
             state.bypassDepth = 0;
+            state.afkSessionCounter.reset(System.currentTimeMillis());
             resetSuppressedSinceRefresh(state);
         }
     }
@@ -138,9 +143,13 @@ public final class AfkNetworkManager {
         final long now = System.currentTimeMillis();
         if (!isAfk(player, state, now, config.afkThresholdTicks)) {
             state.afk = false;
+            state.afkSessionCounter.reset(now);
+            resetSuppressedSinceRefresh(state);
             return false;
         }
-        state.afk = true;
+        if (!state.afk) {
+            enterAfk(player, state, now);
+        }
 
         final int estimatedBytes = Math.max(estimatePacketBytes(connection, packet), 0);
         final long refreshThreshold = config.maxSuppressedBytesBeforeCategoryResync;
@@ -150,11 +159,13 @@ public final class AfkNetworkManager {
             if (category == AfkSuppressibleCategory.WORLD_EFFECTS || category == AfkSuppressibleCategory.UI_STREAM) {
                 return false;
             }
+            recordAfkSessionSaved(state, estimatedBytes, now);
             recordSaved(player, category, estimatedBytes, now);
             return true;
         }
 
         state.suppressedSinceRefresh.put(category, state.suppressedSinceRefresh.get(category) + estimatedBytes);
+        recordAfkSessionSaved(state, estimatedBytes, now);
         recordSaved(player, category, estimatedBytes, now);
         return true;
     }
@@ -386,14 +397,125 @@ public final class AfkNetworkManager {
     }
 
     private static void markActivity(final ServerPlayer player, final RuntimeState state) {
-        state.lastActivityMillis = System.currentTimeMillis();
+        final long now = System.currentTimeMillis();
+        state.lastActivityMillis = now;
         if (state.afk) {
+            final long sessionSavedTraffic = state.afkSessionCounter.totalBytes();
+            final long sessionSavedBandwidth = state.afkSessionCounter.peakBytesPerSecond();
             state.afk = false;
             resetSuppressedSinceRefresh(state);
+            state.afkSessionCounter.reset(now);
+            sendConfiguredMessage(player, state, DeerFoliaConfiguration.afkNetworkOptimization.afkExitMessage, sessionSavedTraffic, sessionSavedBandwidth);
             if (DeerFoliaConfiguration.afkNetworkOptimization.resyncOnResume) {
                 resyncAll(player, state);
             }
         }
+    }
+
+    private static void enterAfk(final ServerPlayer player, final RuntimeState state, final long now) {
+        state.afk = true;
+        state.afkSessionCounter.reset(now);
+        resetSuppressedSinceRefresh(state);
+        sendConfiguredMessage(player, state, DeerFoliaConfiguration.afkNetworkOptimization.afkEnterMessage, 0L, 0L);
+    }
+
+    private static void recordAfkSessionSaved(final RuntimeState state, final int bytes, final long now) {
+        if (bytes <= 0) {
+            return;
+        }
+        state.afkSessionCounter.record(bytes, now);
+    }
+
+    private static void sendConfiguredMessage(final ServerPlayer player, final RuntimeState state, final String template, final long savedTrafficBytes, final long savedBandwidthBytesPerSecond) {
+        if (player.hasDisconnected() || template == null || template.isEmpty()) {
+            return;
+        }
+
+        final String message = template
+            .replace("{player}", player.getGameProfile().name())
+            .replace("{saved_traffic}", formatBytes(savedTrafficBytes))
+            .replace("{saved_bandwidth}", formatRate(savedBandwidthBytesPerSecond));
+        if (message.isEmpty()) {
+            return;
+        }
+
+        withBypass(state, () -> player.sendSystemMessage(parseConfiguredMessage(message)));
+    }
+
+    private static Component parseConfiguredMessage(final String message) {
+        final MutableComponent component = Component.empty();
+        final StringBuilder segment = new StringBuilder(message.length());
+        Style style = Style.EMPTY;
+
+        for (int index = 0; index < message.length(); index++) {
+            final char character = message.charAt(index);
+            if (isColorCodePrefix(character) && index + 1 < message.length()) {
+                final Style hexStyle = parseHexColor(message, index);
+                if (hexStyle != null) {
+                    appendMessageSegment(component, segment, style);
+                    style = hexStyle;
+                    index += 7;
+                    continue;
+                }
+
+                final ChatFormatting formatting = ChatFormatting.getByCode(message.charAt(index + 1));
+                if (formatting != null) {
+                    appendMessageSegment(component, segment, style);
+                    style = applyLegacyFormatting(style, formatting);
+                    index++;
+                    continue;
+                }
+            }
+            segment.append(character);
+        }
+
+        appendMessageSegment(component, segment, style);
+        return component;
+    }
+
+    private static boolean isColorCodePrefix(final char character) {
+        return character == '&' || character == '\u00A7';
+    }
+
+    private static Style parseHexColor(final String message, final int prefixIndex) {
+        if (prefixIndex + 7 >= message.length() || message.charAt(prefixIndex + 1) != '#') {
+            return null;
+        }
+
+        final String hex = message.substring(prefixIndex + 2, prefixIndex + 8);
+        for (int index = 0; index < hex.length(); index++) {
+            if (Character.digit(hex.charAt(index), 16) < 0) {
+                return null;
+            }
+        }
+
+        return Style.EMPTY.withColor(TextColor.fromRgb(Integer.parseInt(hex, 16)));
+    }
+
+    private static Style applyLegacyFormatting(final Style currentStyle, final ChatFormatting formatting) {
+        if (formatting == ChatFormatting.RESET) {
+            return Style.EMPTY;
+        }
+        if (formatting.isColor()) {
+            return Style.EMPTY.withColor(formatting);
+        }
+        return switch (formatting) {
+            case BOLD -> currentStyle.withBold(true);
+            case ITALIC -> currentStyle.withItalic(true);
+            case UNDERLINE -> currentStyle.withUnderlined(true);
+            case STRIKETHROUGH -> currentStyle.withStrikethrough(true);
+            case OBFUSCATED -> currentStyle.withObfuscated(true);
+            default -> currentStyle;
+        };
+    }
+
+    private static void appendMessageSegment(final MutableComponent component, final StringBuilder segment, final Style style) {
+        if (segment.isEmpty()) {
+            return;
+        }
+
+        component.append(Component.literal(segment.toString()).setStyle(style));
+        segment.setLength(0);
     }
 
     private static boolean isSelfEntityPacket(final ServerPlayer player, final Packet<?> packet) {
@@ -408,17 +530,33 @@ public final class AfkNetworkManager {
     }
 
     private static void refreshCategory(final ServerPlayer player, final RuntimeState state, final AfkSuppressibleCategory category) {
-        switch (category) {
-            case CHUNK_STREAM, BLOCK_UPDATES -> resendVisibleChunks(player, state);
-            case ENTITY_STREAM -> resendVisibleEntities(player, state);
-            case WORLD_EFFECTS, UI_STREAM -> {
+        schedulePlayerTask(player, () -> {
+            switch (category) {
+                case CHUNK_STREAM, BLOCK_UPDATES -> resendVisibleChunks(player, state);
+                case ENTITY_STREAM -> resendVisibleEntities(player, state);
+                case WORLD_EFFECTS, UI_STREAM -> {
+                }
             }
-        }
+        });
     }
 
     private static void resyncAll(final ServerPlayer player, final RuntimeState state) {
-        resendVisibleChunks(player, state);
-        resendVisibleEntities(player, state);
+        schedulePlayerTask(player, () -> {
+            resendVisibleChunks(player, state);
+            resendVisibleEntities(player, state);
+        });
+    }
+
+    private static void schedulePlayerTask(final ServerPlayer player, final Runnable action) {
+        if (player.hasDisconnected()) {
+            return;
+        }
+
+        player.getBukkitEntity().taskScheduler.scheduleOrExecute(ignored -> {
+            if (!player.hasDisconnected()) {
+                action.run();
+            }
+        });
     }
 
     private static void resendVisibleChunks(final ServerPlayer player, final RuntimeState state) {
@@ -501,6 +639,7 @@ public final class AfkNetworkManager {
         private volatile boolean afk;
         private volatile int bypassDepth;
         private final EnumMap<AfkSuppressibleCategory, Long> suppressedSinceRefresh = new EnumMap<>(AfkSuppressibleCategory.class);
+        private final TrafficCounter afkSessionCounter = new TrafficCounter();
 
         private RuntimeState() {
             resetSuppressedSinceRefresh(this);
@@ -563,6 +702,13 @@ public final class AfkNetworkManager {
 
         private synchronized long peakBytesPerSecond() {
             return this.peakBytesPerSecond;
+        }
+
+        private synchronized void reset(final long now) {
+            this.totalBytes = 0L;
+            this.peakBytesPerSecond = 0L;
+            this.currentWindowBytes = 0L;
+            this.currentWindowStartMillis = now;
         }
     }
 }

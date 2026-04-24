@@ -90,6 +90,10 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         public boolean enabled = true;
         @Comments("Ticks without activity before a player is considered AFK")
         public int afkThresholdTicks = 20 * 60;
+        @Comments({"Message sent once when a player first becomes AFK. Empty string disables it", "Placeholders: {player}", "Supports legacy colors like &7, &a, and hex colors like &#55FFFF"})
+        public String afkEnterMessage = "&7[AFKNet] &eYou are now AFK. &7DeerFolia will temporarily suppress non-essential packets to save bandwidth.";
+        @Comments({"Message sent when a player becomes active again. Empty string disables it", "Placeholders: {player}, {saved_traffic}, {saved_bandwidth}", "Supports legacy colors like &7, &a, and hex colors like &#55FFFF"})
+        public String afkExitMessage = "&7[AFKNet] &aWelcome back! &7During this AFK session, you saved &b{saved_traffic} &7of traffic and up to &b{saved_bandwidth} &7of bandwidth. &aThanks for helping the server.";
         @Comments("Whether look-only rotation changes count as activity")
         public boolean countLookChangesAsActivity = true;
         @Comments("Resend nearby chunks and tracked entities when a player becomes active again")
@@ -107,6 +111,8 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         if (afkNetworkOptimization.afkThresholdTicks < 1) {
             afkNetworkOptimization.afkThresholdTicks = 1;
         }
+        afkNetworkOptimization.afkEnterMessage = afkNetworkOptimization.afkEnterMessage == null ? "" : afkNetworkOptimization.afkEnterMessage.trim();
+        afkNetworkOptimization.afkExitMessage = afkNetworkOptimization.afkExitMessage == null ? "" : afkNetworkOptimization.afkExitMessage.trim();
         if (afkNetworkOptimization.maxSuppressedBytesBeforeCategoryResync < -1L) {
             afkNetworkOptimization.maxSuppressedBytesBeforeCategoryResync = -1L;
         }

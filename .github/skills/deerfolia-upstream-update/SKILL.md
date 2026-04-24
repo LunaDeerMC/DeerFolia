@@ -76,7 +76,7 @@ When a patch fails to apply, the error message indicates which patch and which f
 ### 5. Build Verification
 
 ```bash
-./gradlew createMojmapPaperclipJar
+./gradlew createPaperclipJar
 ```
 
 Fix any compilation errors — typically caused by:

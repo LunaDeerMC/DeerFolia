@@ -88,7 +88,7 @@ When the feature requires changes to Minecraft/Paper/Folia code:
 ### 4. Build and Verify
 
 ```bash
-./gradlew createMojmapPaperclipJar
+./gradlew createPaperclipJar
 ```
 
 Output JAR: `DeerFolia-server/build/libs/DeerFolia-paperclip-*-mojmap.jar`
@@ -147,4 +147,4 @@ From entity throttling — `0007-Kaiiju-Entity-Throttling.patch`:
 - [ ] FQN used for DeerFolia classes in upstream files
 - [ ] Changes committed in subproject before rebuilding patches
 - [ ] Patches regenerated with `./gradlew rebuildAllServerPatches`
-- [ ] Build succeeds: `./gradlew createMojmapPaperclipJar`
+- [ ] Build succeeds: `./gradlew createPaperclipJar`

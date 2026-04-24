@@ -20,7 +20,7 @@ This is a **paperweight patcher project** - NOT a traditional Java project:
 ```bash
 ./gradlew applyAllPatches       # Apply patches to generate source (REQUIRED before coding)
 ./gradlew rebuildAllServerPatches  # Generate patches from committed changes
-./gradlew createMojmapPaperclipJar # Build server JAR → DeerFolia-server/build/libs/
+./gradlew createPaperclipJar # Build server JAR → DeerFolia-server/build/libs/
 ```
 
 ## Code Modification Workflow

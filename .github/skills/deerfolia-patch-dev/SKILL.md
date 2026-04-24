@@ -29,7 +29,7 @@ New DeerFolia-specific classes go in `DeerFolia-server/src/main/java/cn/lunadeer
 ```bash
 ./gradlew applyAllPatches          # Apply patches → generate source (MUST run before coding)
 ./gradlew rebuildAllServerPatches  # Generate patches from committed changes
-./gradlew createMojmapPaperclipJar # Build server JAR
+./gradlew createPaperclipJar # Build server JAR
 ```
 
 ## Workflow: Modify Upstream Code
@@ -45,7 +45,7 @@ New DeerFolia-specific classes go in `DeerFolia-server/src/main/java/cn/lunadeer
    ```
 5. Regenerate patches: `./gradlew rebuildAllServerPatches`
 6. Verify the generated/updated `.patch` file in the appropriate patches directory
-7. Build to verify: `./gradlew createMojmapPaperclipJar`
+7. Build to verify: `./gradlew createPaperclipJar`
 
 ## Code Marking Rules (CRITICAL)
 

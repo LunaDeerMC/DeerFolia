@@ -113,7 +113,7 @@
 ### 阶段 7：构建与验收
 
 - 重新生成补丁：`./gradlew rebuildAllServerPatches`
-- 构建打包：`./gradlew createMojmapPaperclipJar`
+- 构建打包：`./gradlew createPaperclipJar`
 - 在 `/workspaces/runtime` 进行集成验证：
   - 以离线模式启动服务器；
   - 使用无头 Minecraft 客户端以离线模式接入；
