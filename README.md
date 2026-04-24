@@ -19,6 +19,7 @@ DeerFolia 是一个基于 [Folia](https://papermc.io/software/folia) 的 Minecra
 - [Async Path Finding (Pufferfish)](deer-folia-server/minecraft-patches/features/0005-Async-pathfinding.patch)；
 - [Kaiiju Entity Throttling (Kaiiju)](deer-folia-server/minecraft-patches/features/0007-Kaiiju-Entity-Throttling.patch)；
 - [Kaiiju Skip Empty Listeners Event](deer-folia-server/paper-patches/features/0002-Kaiiju-Skip-Empty-Listeners-Event.patch)；
+- [AFK Network Optimization](docs/afk-network-optimization.md)；
 
 ## 额外配置
 
@@ -78,6 +79,42 @@ ZombifiedPiglin:
 - `kaiiju-entity-throttling`：是否启用 Kaiiju 实体节流机制；
 - `limit`：实体数量限制，超过该数量后实体每 3 tick 才会被更新一次；
 - `removal`：实体移除限制，超过该数量后实体最先生成的实体会被逐步移除；
+
+### AFK Network Optimization
+
+当玩家被判定为挂机时，服务器会暂停向该玩家发送可抑制类别的数据包，用于降低挂机场景下的流量和带宽占用。玩家恢复活动后，会自动补做必要同步。
+
+```yaml
+# config/deer-folia.yml
+afk-network-optimization:
+   enabled: true
+   afk-threshold-ticks: 1200
+   count-look-changes-as-activity: true
+   resync-on-resume: true
+   stats-enabled: true
+   suppression-whitelist-categories: []
+   max-suppressed-bytes-before-category-resync: -1
+```
+
+- `afk-threshold-ticks`：玩家连续多少 tick 无活动后进入 AFK；
+- `count-look-changes-as-activity`：仅转头/移动视角是否算恢复活动；
+- `suppression-whitelist-categories`：AFK 时仍然继续发送、不参与抑制的类别白名单；
+- `max-suppressed-bytes-before-category-resync`：单玩家单类别累计抑制到指定字节数后，提前做一次局部补同步；设置为 `-1` 表示无限制抑制。
+
+可抑制类别包括：
+
+- `chunk-stream`：区块、光照、区块批次相关数据；
+- `block-updates`：方块更新、批量方块更新、方块实体更新；
+- `entity-stream`：实体生成/销毁/移动/元数据/装备/属性等跟踪流；
+- `world-effects`：粒子、声音、爆炸、关卡事件等效果流；
+- `ui-stream`：BossBar、Title、TabList、计分板、地图等 UI 同步流。
+
+统计命令：
+
+```text
+/afknetstats
+/afknetstats <player>
+```
 
 ## 如何自行编译
 

@@ -1,5 +1,6 @@
 package cn.lunadeer.mc.deerfolia;
 
+import cn.lunadeer.mc.deerfolia.afknetwork.AfkSuppressibleCategory;
 import cn.lunadeer.mc.deerfolia.utils.configuration.*;
 import com.mojang.logging.LogUtils;
 import dev.kaiijumc.kaiiju.KaiijuEntityLimits;
@@ -7,6 +8,11 @@ import io.papermc.paper.configuration.PaperConfigurations;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class DeerFoliaConfiguration extends ConfigurationFile {
 
@@ -74,6 +80,53 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         public int villageDistanceCacheDuration = 100;
         @Comments("Skip golem spawn check if villager is more than this distance from nearest player")
         public int golemSpawnPlayerDistanceLimit = 128;
+    }
+
+    @Comments("AFK Network Optimization - Suppress non-essential packets for inactive players")
+    public static AfkNetworkOptimization afkNetworkOptimization = new AfkNetworkOptimization();
+
+    public static class AfkNetworkOptimization extends ConfigurationPart {
+        @Comments("Enable AFK network optimization")
+        public boolean enabled = true;
+        @Comments("Ticks without activity before a player is considered AFK")
+        public int afkThresholdTicks = 20 * 60;
+        @Comments("Whether look-only rotation changes count as activity")
+        public boolean countLookChangesAsActivity = true;
+        @Comments("Resend nearby chunks and tracked entities when a player becomes active again")
+        public boolean resyncOnResume = true;
+        @Comments("Collect bandwidth saving statistics for commands")
+        public boolean statsEnabled = true;
+        @Comments("Suppressible categories that should continue to pass through while AFK. Valid values: chunk-stream, block-updates, entity-stream, world-effects, ui-stream")
+        public List<String> suppressionWhitelistCategories = new ArrayList<>();
+        @Comments("Maximum suppressed bytes per player and category before a category-specific refresh is forced. Set to -1 for unlimited suppression")
+        public long maxSuppressedBytesBeforeCategoryResync = -1L;
+    }
+
+    @PostProcess
+    public static void normalizeAfkNetworkOptimization() {
+        if (afkNetworkOptimization.afkThresholdTicks < 1) {
+            afkNetworkOptimization.afkThresholdTicks = 1;
+        }
+        if (afkNetworkOptimization.maxSuppressedBytesBeforeCategoryResync < -1L) {
+            afkNetworkOptimization.maxSuppressedBytesBeforeCategoryResync = -1L;
+        }
+
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String categoryName : afkNetworkOptimization.suppressionWhitelistCategories) {
+            if (categoryName == null) {
+                continue;
+            }
+            String normalizedName = categoryName.toLowerCase(Locale.ROOT).trim();
+            if (normalizedName.isEmpty()) {
+                continue;
+            }
+            if (AfkSuppressibleCategory.fromConfigKey(normalizedName).isPresent()) {
+                normalized.add(normalizedName);
+            } else {
+                LOGGER.warn("Ignoring unknown AFK suppression whitelist category: {}", categoryName);
+            }
+        }
+        afkNetworkOptimization.suppressionWhitelistCategories = new ArrayList<>(normalized);
     }
 
 }
