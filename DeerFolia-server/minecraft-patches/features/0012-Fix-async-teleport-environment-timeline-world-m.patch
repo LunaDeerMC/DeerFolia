@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@github.com>
+Date: Sat, 25 Apr 2026 00:00:00 +0000
+Subject: [PATCH] Fix async teleport environment timeline world mismatch
+
+
+diff --git a/net/minecraft/world/attribute/EnvironmentAttributeSystem.java b/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
+--- a/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
++++ b/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
+@@ -55,7 +55,8 @@ public class EnvironmentAttributeSystem implements EnvironmentAttributeReader {
+     static void addDefaultLayers(EnvironmentAttributeSystem.Builder builder, Level level) {
+         RegistryAccess registryAccess = level.registryAccess();
+         BiomeManager biomeManager = level.getBiomeManager();
+-        LongSupplier longSupplier = level::getDayTime;
++        // Folia async teleport can construct target-world entities before region world data is bound.
++        LongSupplier longSupplier = level.getLevelData()::getDayTime;
+         addDimensionLayer(builder, level.dimensionType());
+         addBiomeLayer(builder, registryAccess.lookupOrThrow(Registries.BIOME), biomeManager);
+         level.dimensionType().timelines().forEach(holder -> builder.addTimelineLayer((Holder<Timeline>)holder, longSupplier));
+
+-- 
+2.39.5
