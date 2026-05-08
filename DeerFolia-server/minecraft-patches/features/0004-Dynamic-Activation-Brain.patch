@@ -34,10 +34,10 @@ index 36aabbd42cd89f8894c400bf6d26e18172508241..d385254aa4a079c13f4066212c486c89
          }
      }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 78df4e040c6ae0042202764aa6fdf08c51a6d910..d9bfe0d13d4fc8090a7d5042d78bb82885a9d36f 100644
+index a51a9e7a0fa5727690046d814eb0b26d5742cd74..2e35d415555b6acb957d9ab13326a77b60dc116e 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -920,6 +920,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+@@ -927,6 +927,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
              regionizedWorldData // Folia - regionised ticking
                  .forEachTickingEntity( // Folia - regionised ticking
                      entity -> {
@@ -46,7 +46,7 @@ index 78df4e040c6ae0042202764aa6fdf08c51a6d910..d9bfe0d13d4fc8090a7d5042d78bb828
                              if (!tickRateManager.isEntityFrozen(entity)) {
                                  profiler.push("checkDespawn");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index fa81d62e6b8fb37574e2809db2fa115284b6255a..c8975fa63cf90a5bdbe41aef657fc7beaccc27c1 100644
+index 81443a2dd1590d68dd6d4d16ac565d0a9f92010a..76ffce33edf3be67bf9fe59f1e9e9afc9e5d0999 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -387,6 +387,8 @@ public abstract class Entity
@@ -253,7 +253,7 @@ index 3d4bfeae2fddb9ace26e7dea8870704d8309862b..a7bacb608989477ff1749dad046a639f
          profiler.pop();
          profiler.push("tadpoleActivityUpdate");
 diff --git a/net/minecraft/world/entity/animal/goat/Goat.java b/net/minecraft/world/entity/animal/goat/Goat.java
-index 22123232e0f5fe60cc9629cde7cf56bd464932d0..ec68d0b17b540413dc9748d18c89cf061d1089c5 100644
+index e7beaf8f5a1c6c393e158f15da422217976850f0..b230cef568ec589c4d77a61d1ecdca5b5f4a450e 100644
 --- a/net/minecraft/world/entity/animal/goat/Goat.java
 +++ b/net/minecraft/world/entity/animal/goat/Goat.java
 @@ -166,10 +166,12 @@ public class Goat extends Animal {

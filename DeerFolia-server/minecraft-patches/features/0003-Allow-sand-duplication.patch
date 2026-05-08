@@ -5,10 +5,10 @@ Subject: [PATCH] Allow sand duplication
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 8feef57055492ca82e03f4fb0f7e8d8da41dc0da..fa81d62e6b8fb37574e2809db2fa115284b6255a 100644
+index 13f23918b6a9db52742a01bf16c69389a1c16dc9..81443a2dd1590d68dd6d4d16ac565d0a9f92010a 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4535,14 +4535,19 @@ public abstract class Entity
+@@ -4534,14 +4534,19 @@ public abstract class Entity
                          targetPos, 16, // load 16 blocks to be safe from block physics
                          ca.spottedleaf.concurrentutil.util.Priority.HIGH,
                          (chunks) -> {
@@ -31,7 +31,7 @@ index 8feef57055492ca82e03f4fb0f7e8d8da41dc0da..fa81d62e6b8fb37574e2809db2fa1152
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET),
                                      org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL
                                  )
-@@ -4739,6 +4744,11 @@ public abstract class Entity
+@@ -4738,6 +4743,11 @@ public abstract class Entity
          if (!this.canPortalAsync(destination, takePassengers)) {
              return false;
          }
@@ -43,7 +43,7 @@ index 8feef57055492ca82e03f4fb0f7e8d8da41dc0da..fa81d62e6b8fb37574e2809db2fa1152
  
          Vec3 initialPosition = this.position();
          ChunkPos initialPositionChunk = new ChunkPos(
-@@ -4803,9 +4813,14 @@ public abstract class Entity
+@@ -4802,9 +4812,14 @@ public abstract class Entity
                          info.postTeleportTransition().onTransition(teleported);
                      }
  

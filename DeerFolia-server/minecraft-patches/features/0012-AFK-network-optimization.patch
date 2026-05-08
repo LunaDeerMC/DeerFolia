@@ -1,18 +1,11 @@
-From 09815d024cc7bce737c8c0269559c7d30c5ad58b Mon Sep 17 00:00:00 2001
-From: Copilot <223556219+Copilot@users.noreply.github.com>
-Date: Fri, 24 Apr 2026 02:07:14 +0000
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: patch <patch@example.com>
+Date: Fri, 8 May 2026 15:58:58 +0800
 Subject: [PATCH] AFK network optimization
 
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
----
- net/minecraft/commands/Commands.java          |  1 +
- net/minecraft/network/Connection.java         | 21 ++++++++++++++++++
- net/minecraft/server/level/ServerPlayer.java  |  1 +
- .../network/ServerGamePacketListenerImpl.java | 22 +++++++++++++++++++
- 4 files changed, 45 insertions(+)
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index 1e1cb2a..4da1867 100644
+index 6d07881b8076139d02eccb7e16b870e6cc003bf2..c209c03be447f607ada2bbf719a0e1c1d9776d0d 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -235,6 +235,7 @@ public class Commands {
@@ -24,7 +17,7 @@ index 1e1cb2a..4da1867 100644
          RideCommand.register(this.dispatcher); // Folia - region threading - TODO later
          RotateCommand.register(this.dispatcher); // Folia - region threading - TODO later
 diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
-index f96cca5..d1ff018 100644
+index d43be966a04456ba1a85c20f8b12f91de62a873d..9be8332208ca525c0139beaaa2b7f28b0ecbbb5c 100644
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
 @@ -75,6 +75,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
@@ -41,9 +34,9 @@ index f96cca5..d1ff018 100644
      private @Nullable BandwidthDebugMonitor bandwidthDebugMonitor;
 +    private volatile int deerFoliaCompressionThreshold = -1; // DeerFolia - track compression threshold for packet size estimation
      public String hostname = ""; // CraftBukkit - add field
+     public boolean handleConnectionDisconnectOnNextTick = false; // Paper - Force kill connection ticking
      // Paper start - NetworkClient implementation
-     public int protocolVersion;
-@@ -101,6 +103,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -102,6 +104,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          }
          return null;
      }
@@ -58,7 +51,7 @@ index f96cca5..d1ff018 100644
      // Paper end - add utility methods
      // Paper start - packet limiter
      protected final Object PACKET_LIMIT_LOCK = new Object();
-@@ -371,6 +381,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -372,6 +382,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (protocol.flow() != this.getSending()) {
              throw new IllegalStateException("Invalid outbound protocol: " + protocol.id());
          } else {
@@ -66,7 +59,7 @@ index f96cca5..d1ff018 100644
              UnconfiguredPipelineHandler.OutboundConfigurationTask configMessage = UnconfiguredPipelineHandler.setupOutboundProtocol(protocol);
              BundlerInfo bundlerInfo = protocol.bundlerInfo();
              if (bundlerInfo != null) {
-@@ -439,6 +450,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -440,6 +451,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              return;
          }
  
@@ -81,7 +74,7 @@ index f96cca5..d1ff018 100644
          packet.onPacketDispatch(this.getPlayer());
          if (false && connected && (InnerUtil.canSendImmediate(this, packet) // Folia - region threading - connection fixes
              || (io.papermc.paper.util.MCUtil.isMainThread() && packet.isReady() && this.pendingActions.isEmpty()
-@@ -864,6 +883,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -866,6 +885,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      public void setupCompression(final int threshold, final boolean validateDecompressed) {
          if (threshold >= 0) {
@@ -89,7 +82,7 @@ index f96cca5..d1ff018 100644
              com.velocitypowered.natives.compression.VelocityCompressor compressor = com.velocitypowered.natives.util.Natives.compress.get().create(io.papermc.paper.configuration.GlobalConfiguration.get().misc.compressionLevel.or(-1)); // Paper - Use Velocity cipher
              if (this.channel.pipeline().get(HandlerNames.DECOMPRESS) instanceof CompressionDecoder compressionDecoder) {
                  compressionDecoder.setThreshold(compressor, threshold, validateDecompressed); // Paper - Use Velocity cipher
-@@ -878,6 +898,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -880,6 +900,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              }
              this.channel.pipeline().fireUserEventTriggered(io.papermc.paper.network.ConnectionEvent.COMPRESSION_THRESHOLD_SET); // Paper - Add Channel initialization listeners
          } else {
@@ -98,7 +91,7 @@ index f96cca5..d1ff018 100644
                  this.channel.pipeline().remove(HandlerNames.DECOMPRESS);
              }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 5d4310d..7e45473 100644
+index 5d4310dab55cc960ccfce279e656e7b740f3d5c0..7e45473ee52b9e0bff2e3f964b7533965faab9ca 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -3037,6 +3037,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -110,10 +103,10 @@ index 5d4310d..7e45473 100644
  
      public ServerStatsCounter getStats() {
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index a67a9ac..05a3f63 100644
+index 4924915ec3adf4d68ca537518fdffa52ec926bf7..1dee97257d0a64d0ef0f465a5be7b53380dfef87 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -569,6 +569,14 @@ public class ServerGamePacketListenerImpl
+@@ -568,6 +568,14 @@ public class ServerGamePacketListenerImpl
          if (containsInvalidValues(packet.position().x(), packet.position().y(), packet.position().z(), packet.yRot(), packet.xRot())) {
              this.disconnect(Component.translatable("multiplayer.disconnect.invalid_vehicle_movement"), org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_VEHICLE_MOVEMENT); // Paper - kick event cause
          } else if (!this.updateAwaitingTeleport() && this.hasClientLoaded()) {
@@ -128,7 +121,7 @@ index a67a9ac..05a3f63 100644
              Entity vehicle = this.player.getRootVehicle();
              // Paper start - Don't allow vehicle movement from players while teleporting
              if (this.awaitingPositionFromClient != null || this.player.isImmobile() || vehicle.isRemoved()) {
-@@ -1501,6 +1509,16 @@ public class ServerGamePacketListenerImpl
+@@ -1500,6 +1508,16 @@ public class ServerGamePacketListenerImpl
          if (containsInvalidValues(packet.getX(0.0), packet.getY(0.0), packet.getZ(0.0), packet.getYRot(0.0F), packet.getXRot(0.0F))) {
              this.disconnect(Component.translatable("multiplayer.disconnect.invalid_player_movement"), org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PLAYER_MOVEMENT); // Paper - kick event cause
          } else {
@@ -145,15 +138,15 @@ index a67a9ac..05a3f63 100644
              ServerLevel level = this.player.level();
              if (!this.player.wonGame && !this.player.isImmobile()) { // CraftBukkit
                  if (this.tickCount == 0) {
-@@ -2336,6 +2354,7 @@ public class ServerGamePacketListenerImpl
-             this.processedDisconnect = true;
-         }
-         // CraftBukkit end
+@@ -2328,6 +2346,7 @@ public class ServerGamePacketListenerImpl
+ 
+     @Override
+     public void onDisconnect(final DisconnectionDetails details) {
 +        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.onDisconnect(this.player); // DeerFolia - AFK network optimization
          LOGGER.info("{} lost connection: {}", this.player.getPlainTextName(), details.reason().getString());
          // Paper start - Fix kick event leave message not being sent
          final net.kyori.adventure.text.Component quitMessage = details.quitMessage().map(io.papermc.paper.adventure.PaperAdventure::asAdventure).orElse(null);
-@@ -2418,6 +2437,7 @@ public class ServerGamePacketListenerImpl
+@@ -2410,6 +2429,7 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -161,7 +154,7 @@ index a67a9ac..05a3f63 100644
          Optional<LastSeenMessages> unpackedLastSeen = this.unpackAndApplyLastSeen(packet.lastSeenMessages());
          if (!unpackedLastSeen.isEmpty()) {
              this.tryHandleChat(packet.message(), false, () -> {
-@@ -2442,6 +2462,7 @@ public class ServerGamePacketListenerImpl
+@@ -2434,6 +2454,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void handleChatCommand(final ServerboundChatCommandPacket packet) {
@@ -169,7 +162,7 @@ index a67a9ac..05a3f63 100644
          this.tryHandleChat(packet.command(), true, () -> {
              // CraftBukkit start - SPIGOT-7346: Prevent disconnected players from executing commands
              if (this.player.hasDisconnected()) {
-@@ -2481,6 +2502,7 @@ public class ServerGamePacketListenerImpl
+@@ -2473,6 +2494,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void handleSignedChatCommand(final ServerboundChatCommandSignedPacket packet) {
@@ -177,5 +170,3 @@ index a67a9ac..05a3f63 100644
          Optional<LastSeenMessages> unpackedLastSeen = this.unpackAndApplyLastSeen(packet.lastSeenMessages());
          if (!unpackedLastSeen.isEmpty()) {
              this.tryHandleChat(packet.command(), true, () -> {
--- 
-2.53.0

@@ -5,7 +5,7 @@ Subject: [PATCH] Async pathfinding
 
 
 diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
-index a8f2b22436ff0f4bff06b2c5cf01375da755cfde..758b69aeff096183fa07d43e5b34ec006055a56d 100644
+index a8f2b22436ff0f4bff06b2c5cf01375da755cfde..b664aafa1010cb6b00919d782a747674cc356650 100644
 --- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
 +++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
 @@ -98,6 +98,30 @@ public class AcquirePoi {
@@ -192,7 +192,7 @@ index 194813475271364831cdd1bb5ae244967341f9da..7f35d5142c26192a8244b9f15dfb2415
      private boolean tryComputePath(final Mob body, final WalkTarget walkTarget, final long timestamp) {
          BlockPos targetPos = walkTarget.getTarget().currentBlockPosition();
 diff --git a/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java b/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
-index 843d6897a43ed9e9d28b29608401b78266f57f61..d570c5e6930ab898847556bf213e3b132785d719 100644
+index 843d6897a43ed9e9d28b29608401b78266f57f61..f5e2f734080f18d78ed0ece8f04cc8385281ffff 100644
 --- a/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
 +++ b/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
 @@ -59,6 +59,27 @@ public class SetClosestHomeAsWalkTarget {
@@ -343,7 +343,7 @@ index 85b694b110ed85992c87c1268de7124c78a609b7..ff1b9b1a16b142021d79cd204a152b07
      }
  
 diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
-index 21ead01c326b187dc1117b549dbdf706730a2147..75365501dad75af2764fcfd6e464657cf09e8089 100644
+index 21ead01c326b187dc1117b549dbdf706730a2147..7808163d8cb6ec608999d7b49b802519141cc98b 100644
 --- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 @@ -161,6 +161,12 @@ public abstract class PathNavigation {
@@ -458,7 +458,7 @@ index bf7c7dfc9dabe905490a9610b4201a0023ef69b3..f6f004683abbb78449c6dc92e66956b6
      }
  
 diff --git a/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java b/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
-index f47e879913fc23e1c741366fc8e77ca15192d832..0b243158a4a940716829e31f5ff1b58968a24b9b 100644
+index f47e879913fc23e1c741366fc8e77ca15192d832..91e6655d1cb9c21a1cecd1db484e1faa162eb8ea 100644
 --- a/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
 +++ b/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
 @@ -57,6 +57,26 @@ public class NearestBedSensor extends Sensor<Mob> {
@@ -695,7 +695,7 @@ index bbc620d0781824c83561065882341daf6b65d406..e99648d09f6cf81d1b9fc1f92ffb51f0
                      {
                          Objects.requireNonNull(nodeEvaluator);
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 5211ee4c8101d96caaff95c8a7b2932eed5567ee..ccd513b7bbe7cdf70bbbf941172f26c9fef9d64b 100644
+index dd8cdb792d8d94b691c40e0c07f04975cb70aa21..2e2bbc74dbbc3b5943191255786d48aedab44312 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -473,7 +473,10 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
