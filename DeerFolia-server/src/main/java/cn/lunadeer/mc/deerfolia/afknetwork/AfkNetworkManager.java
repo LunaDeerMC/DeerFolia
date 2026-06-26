@@ -116,15 +116,14 @@ public final class AfkNetworkManager {
         }
     }
 
+    public static void onLogin(final ServerPlayer player) {
+        final RuntimeState state = new RuntimeState();
+        state.lastActivityMillis = System.currentTimeMillis();
+        RUNTIME_STATES.put(player.getUUID(), state);
+    }
+
     public static void onDisconnect(final ServerPlayer player) {
-        final RuntimeState state = RUNTIME_STATES.get(player.getUUID());
-        if (state != null) {
-            state.afk = false;
-            state.bypassDepth = 0;
-            state.afkSessionCounter.reset(System.currentTimeMillis());
-            state.afkEntryTrackedEntityIds.clear();
-            resetSuppressedSinceRefresh(state);
-        }
+        RUNTIME_STATES.remove(player.getUUID());
     }
 
     public static boolean shouldSuppress(final ServerPlayer player, final Packet<?> packet, final Connection connection) {

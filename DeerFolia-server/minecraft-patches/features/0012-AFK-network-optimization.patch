@@ -102,6 +102,18 @@ index 5d4310dab55cc960ccfce279e656e7b740f3d5c0..7e45473ee52b9e0bff2e3f964b753396
      }
  
      public ServerStatsCounter getStats() {
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 329d679a9d35b88f67c8adf07453f1fb92f6f2292..8c8a834f5be37f47ef214ea31e9f68d68d49f33e 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -234,6 +234,7 @@ public abstract class PlayerList {
+         String address = connection.getLoggableAddress(this.server.logIPs());
+         LevelData levelData = level.getLevelData();
+         ServerGamePacketListenerImpl playerConnection = new ServerGamePacketListenerImpl(this.server, connection, player, cookie);
++        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.onLogin(player); // DeerFolia - reset AFK network state for a fresh login
+         // Folia start - rewrite login process
+         // only after setting the connection listener to game type, add the connection to this regions list
+         level.getCurrentWorldData().connections.add(connection);
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 index 4924915ec3adf4d68ca537518fdffa52ec926bf7..1dee97257d0a64d0ef0f465a5be7b53380dfef87 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
