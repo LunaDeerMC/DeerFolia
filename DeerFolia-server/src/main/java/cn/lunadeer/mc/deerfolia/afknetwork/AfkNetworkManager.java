@@ -503,7 +503,7 @@ public final class AfkNetworkManager {
         if (formatting == ChatFormatting.RESET) {
             return Style.EMPTY;
         }
-        if (formatting.isColor()) {
+        if (TextColor.fromLegacyFormat(formatting) != null) {
             return Style.EMPTY.withColor(formatting);
         }
         return switch (formatting) {

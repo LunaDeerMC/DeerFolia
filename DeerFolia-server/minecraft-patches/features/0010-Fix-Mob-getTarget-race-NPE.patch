@@ -5,10 +5,10 @@ Subject: [PATCH] Fix Mob getTarget race NPE
 
 
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 15e91612b441b45b9a211d2709cdbaf76d067d2a..b1ce239583ac7d0c809fc3aae0c614712390292b 100644
+index c8a9f0ff3185b98342f573a8ae9eec7eae63a4e9..e337eafc819e2aa57cf35a9107dd6664407c183b 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -256,10 +256,13 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+@@ -260,10 +260,13 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      @Override
      public @Nullable LivingEntity getTarget() {
          // Folia start - region threading

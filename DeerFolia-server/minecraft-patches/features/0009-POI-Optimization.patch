@@ -5,10 +5,10 @@ Subject: [PATCH] POI Optimization
 
 
 diff --git a/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java b/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
-index a29b5447b327dcc9426ad351a8e9555b7c8c8274..dc41b16a44180d887c276d7f41d9bfe130fcd763 100644
+index 8706f2f2dba02f5d29accbb026dd737f0bfde4b0..1a69c0475552e4c488b0244cef7df4c6d08fdf64 100644
 --- a/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
 +++ b/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
-@@ -11,19 +11,51 @@ import net.minecraft.world.entity.npc.villager.Villager;
+@@ -11,6 +11,38 @@ import net.minecraft.world.entity.npc.villager.Villager;
  import net.minecraft.world.phys.Vec3;
  
  public class GoToClosestVillage {
@@ -47,22 +47,23 @@ index a29b5447b327dcc9426ad351a8e9555b7c8c8274..dc41b16a44180d887c276d7f41d9bfe1
      public static BehaviorControl<Villager> create(final float speedModifier, final int closeEnoughDistance) {
          return BehaviorBuilder.create(i -> i.group(i.absent(MemoryModuleType.WALK_TARGET)).apply(i, walkTarget -> (level, body, timestamp) -> {
              if (level.isVillage(body.blockPosition())) {
-                 return false;
-             } else {
-                 PoiManager poiManager = level.getPoiManager();
--                int sectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(body.blockPosition()));
-+                int sectionsToVillage = getCachedSectionsToVillage(poiManager, SectionPos.of(body.blockPosition()), timestamp); // DeerFolia - POI optimization
-                 Vec3 targetPos = null;
+@@ -18,13 +50,13 @@ public class GoToClosestVillage {
+             }
  
-                 for (int j = 0; j < 5; j++) {
--                    Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -poiManager.sectionsToVillage(SectionPos.of(p)));
-+                    Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -getCachedSectionsToVillage(poiManager, SectionPos.of(p), timestamp)); // DeerFolia - POI optimization
-                     if (landPos != null) {
--                        int landPosSectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(BlockPos.containing(landPos)));
-+                        int landPosSectionsToVillage = getCachedSectionsToVillage(poiManager, SectionPos.of(BlockPos.containing(landPos)), timestamp); // DeerFolia - POI optimization
-                         if (landPosSectionsToVillage < sectionsToVillage) {
-                             targetPos = landPos;
-                             break;
+             PoiManager poiManager = level.getPoiManager();
+-            int sectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(body.blockPosition()));
++            int sectionsToVillage = getCachedSectionsToVillage(poiManager, SectionPos.of(body.blockPosition()), timestamp); // DeerFolia - POI optimization
+             Vec3 targetPos = null;
+ 
+             for (int j = 0; j < 5; j++) {
+-                Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -poiManager.sectionsToVillage(SectionPos.of(p)));
++                Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -getCachedSectionsToVillage(poiManager, SectionPos.of(p), timestamp)); // DeerFolia - POI optimization
+                 if (landPos != null) {
+-                    int landPosSectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(BlockPos.containing(landPos)));
++                    int landPosSectionsToVillage = getCachedSectionsToVillage(poiManager, SectionPos.of(BlockPos.containing(landPos)), timestamp); // DeerFolia - POI optimization
+                     if (landPosSectionsToVillage < sectionsToVillage) {
+                         targetPos = landPos;
+                         break;
 diff --git a/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java b/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
 index bd4fab6ad4404a758c7dbb690c32390038c8fb32..6907970f1591a2313d7b4503df3399fa8630dd05 100644
 --- a/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
@@ -86,7 +87,7 @@ index bd4fab6ad4404a758c7dbb690c32390038c8fb32..6907970f1591a2313d7b4503df3399fa
              BlockPos pos = globalPos.pos();
              if (level.dimension() == globalPos.dimension() && pos.closerToCenterThan(body.position(), MAX_DISTANCE)) {
 diff --git a/net/minecraft/world/entity/ai/sensing/GolemSensor.java b/net/minecraft/world/entity/ai/sensing/GolemSensor.java
-index 730b372e46d75e43a553b49dad41cc2d2f7510ee..ee2597ad7f8823ef6e345fc33a3ed0dda2b36b21 100644
+index 6bdc94f4de3a3190907fe0b0325223ad31a600e9..7721bed051f4b6f970d09e2cebe89fdb74a40ba1 100644
 --- a/net/minecraft/world/entity/ai/sensing/GolemSensor.java
 +++ b/net/minecraft/world/entity/ai/sensing/GolemSensor.java
 @@ -22,6 +22,23 @@ public class GolemSensor extends Sensor<LivingEntity> {
@@ -144,7 +145,7 @@ index ec12508c112b1e7748a5d197b73a0d540bed10fc..288973333a7bb66ab875be2207c44697
          BlockPos center = body.blockPosition();
          List<GlobalPos> jobSites = Lists.newArrayList();
 diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
-index 0817f3942dd7c9e104d08df19c2197b6818b0d5a..91c4ed00e33039aadc8ca589592f912bbd61f34a 100644
+index 4897fb27199a17f99fce030b9c3659640a8723b4..9399522991ef605c191187105e6f78c865d3d1b4 100644
 --- a/net/minecraft/world/entity/npc/villager/Villager.java
 +++ b/net/minecraft/world/entity/npc/villager/Villager.java
 @@ -183,6 +183,7 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
@@ -153,9 +154,9 @@ index 0817f3942dd7c9e104d08df19c2197b6818b0d5a..91c4ed00e33039aadc8ca589592f912b
      public long nextGolemPanic = -1; // DeerFolia - pufferfish DAB
 +    private long lastGolemSpawnCheck = 0; // DeerFolia - POI optimization
  
-     public Villager(final EntityType<? extends Villager> type, final Level level) {
-         this(type, level, VillagerType.PLAINS);
-@@ -901,6 +902,29 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+     public Villager(final EntityType<? extends Villager> entityType, final Level level) {
+         super(entityType, level);
+@@ -903,6 +904,29 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
      }
  
      public void spawnGolemIfNeeded(final ServerLevel level, final long timestamp, final int villagersNeededToAgree) {

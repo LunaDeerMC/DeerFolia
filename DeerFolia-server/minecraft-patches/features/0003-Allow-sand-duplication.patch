@@ -5,10 +5,10 @@ Subject: [PATCH] Allow sand duplication
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 13f23918b6a9db52742a01bf16c69389a1c16dc9..81443a2dd1590d68dd6d4d16ac565d0a9f92010a 100644
+index 07310ae30817fc88227355739074615969b48184..ab1ee9e66dc2bcde1f729fedeea7150d257b0bf4 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4534,14 +4534,19 @@ public abstract class Entity
+@@ -4609,15 +4609,20 @@ public abstract class Entity
                          targetPos, 16, // load 16 blocks to be safe from block physics
                          ca.spottedleaf.concurrentutil.util.Priority.HIGH,
                          (chunks) -> {
@@ -25,13 +25,14 @@ index 13f23918b6a9db52742a01bf16c69389a1c16dc9..81443a2dd1590d68dd6d4d16ac565d0a
                              portalInfoCompletable.complete(
                                  new net.minecraft.world.level.portal.TeleportTransition(
 -                                    destination, Vec3.atBottomCenterOf(targetPos.below()), Vec3.ZERO, Direction.WEST.toYRot(), 0.0f,
--                                    Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
 +                                    destination, finalPos, this.getDeltaMovement(), 90.0f, 0.0f, // DeerFolia - Vanilla end teleportation
+                                     false, false,
+-                                    Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
 +                                    Set.of(), // DeerFolia - Vanilla end teleportation
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET),
-                                     org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL
-                                 )
-@@ -4738,6 +4743,11 @@ public abstract class Entity
+                                     org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL,
+                                     TeleportTransition.PassengerTeleportationMode.POSITION_RIDER
+@@ -4817,6 +4822,11 @@ public abstract class Entity
          if (!this.canPortalAsync(destination, takePassengers)) {
              return false;
          }
@@ -43,7 +44,7 @@ index 13f23918b6a9db52742a01bf16c69389a1c16dc9..81443a2dd1590d68dd6d4d16ac565d0a
  
          Vec3 initialPosition = this.position();
          ChunkPos initialPositionChunk = new ChunkPos(
-@@ -4802,9 +4812,14 @@ public abstract class Entity
+@@ -4881,9 +4891,14 @@ public abstract class Entity
                          info.postTeleportTransition().onTransition(teleported);
                      }
  
@@ -61,10 +62,10 @@ index 13f23918b6a9db52742a01bf16c69389a1c16dc9..81443a2dd1590d68dd6d4d16ac565d0a
              );
          });
 diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
-index dffcc532e456e9576557ca08f468b8ba721628f6..5b2545d1b49ff2a86f4ae8e1c850f37b24565859 100644
+index 480b6b2405706fd4d7158d0e160adafd84099887..0cc05cfcc65e8c94fbe7577b5e2a0b300bb19cf9 100644
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
-@@ -69,7 +69,7 @@ public class FallingBlockEntity extends Entity {
+@@ -70,7 +70,7 @@ public class FallingBlockEntity extends Entity {
      public int fallDamageMax = 40;
      public float fallDamagePerDistance = 0.0F;
      public @Nullable CompoundTag blockData;
@@ -74,7 +75,7 @@ index dffcc532e456e9576557ca08f468b8ba721628f6..5b2545d1b49ff2a86f4ae8e1c850f37b
      public boolean autoExpire = true; // Paper - Expand FallingBlock API
  
 diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
-index aab09feaa3c3c90e33701072e24ed144226e6d53..07762a03c3c9635a587e4a9104d313a295443f4c 100644
+index 123df098fa987030fe3789f36ff95aeee2979834..642855817f1e46d6a2ffd6546d5413f64b743e2d 100644
 --- a/net/minecraft/world/level/block/EndPortalBlock.java
 +++ b/net/minecraft/world/level/block/EndPortalBlock.java
 @@ -76,6 +76,11 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {

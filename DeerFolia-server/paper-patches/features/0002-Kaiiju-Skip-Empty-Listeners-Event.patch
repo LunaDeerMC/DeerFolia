@@ -5,7 +5,7 @@ Subject: [PATCH] Kaiiju Skip Empty Listeners Event
 
 
 diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
-index 7ce9ebba8ce304d1f3f21d4f15ee5f3560d7700b..7045900a6ac1e1301ced59ca2ed4225af7016f52 100644
+index 2a298ec2c95e9cc913926324dbbf192caa38b05f..cd1095670acb83ff6001beccee5940088a3cd70c 100644
 --- a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
 +++ b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
 @@ -36,14 +36,22 @@ class PaperEventManager {

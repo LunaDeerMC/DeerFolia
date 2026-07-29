@@ -22,7 +22,7 @@ index 08745a35b1ce8cc56d970472088de3cd17b9e43a..96637abe31b6801fbf4233af6cddbc58
                  metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
                      String minecraftVersion = Bukkit.getVersion();
 diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-index 4d2936f6818c38e2844cba78ffad339e93ff29ab..b75cd97c70cbeb90a82d5a2b9099eaa30791d984 100644
+index 30815c8970b1f1c88a3c7bb5fd36efd915f1687d..72ef863c9fd43021fbbf23bcaeace92a7ec05bb5 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 @@ -40,10 +40,10 @@ public class PaperVersionFetcher implements VersionFetcher {
@@ -54,10 +54,10 @@ index 6ee39b534b8d992655bc0cef3c299d12cbae0034..8fd162b6441ca1a6ee779d898ee854dc
                  .completer(new ConsoleCommandCompleter(this.server))
                  .option(LineReader.Option.COMPLETE_IN_WORD, true);
 diff --git a/src/main/java/io/papermc/paper/PaperBootstrap.java b/src/main/java/io/papermc/paper/PaperBootstrap.java
-index d543b1b107ab8d3eeb1fc3c1cadf489928d2786e..3f6e3515268ba4b74d7ae18aba603d3b36b913ee 100644
+index 5d24f049fa88ed619c7793cf57525aca641a6df7..1e971b85df95d81cd9e8d9ba4b35a1040a7c67f8 100644
 --- a/src/main/java/io/papermc/paper/PaperBootstrap.java
 +++ b/src/main/java/io/papermc/paper/PaperBootstrap.java
-@@ -31,7 +31,7 @@ public final class PaperBootstrap {
+@@ -35,7 +35,7 @@ public final class PaperBootstrap {
          final String osVersion = System.getProperty("os.version");
          final String osArch = System.getProperty("os.arch");
  
@@ -83,23 +83,23 @@ index 10a0be7a4db1a51579d113d279af7a9effe7f438..8cda5d0a6d5ff1d6a1b22f41c5e91b68
              SharedConstants.getCurrentVersion().name(),
              getManifestAttribute(manifest, ATTRIBUTE_BUILD_NUMBER)
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java b/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
-index 578ad15a29b9366e5d2dcac5c804f70b8c3d92b8..997b64e687c27913bb0d54cb9df462bfe208abc9 100644
+index b568f90116dc0b7e57298f9ecada1c6b1dcb337d..d54f4b342000f40fac21310faad092ed69c03ffa 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftCrashReport.java
-@@ -18,7 +18,7 @@ public class CraftCrashReport implements Supplier<String> {
+@@ -18,7 +18,7 @@ public class CraftCrashReport implements CrashReportDetail<Object> {
  
      @Override
-     public String get() {
+     public String call() {
 -        final io.papermc.paper.ServerBuildInfo build = io.papermc.paper.ServerBuildInfo.buildInfo();
 +        final io.papermc.paper.ServerBuildInfo build = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo(); // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
          StringWriter value = new StringWriter();
          try {
              value.append("\n   BrandInfo: ").append(String.format("%s (%s) version %s", build.brandName(), build.brandId(), build.asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_FULL)));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 9583ff67f17f60883f0c0564eb95c700c85674b4..a87f437f9ee7552141d681cb7174c4d03eb2ed73 100644
+index 9d0dc8815842a0583b212891680bd0c6461c30b9..b936183eaea553cc0075a35644329dcb5eeff53d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -261,7 +261,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
+@@ -262,7 +262,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  import org.yaml.snakeyaml.error.MarkedYAMLException;
  
  public final class CraftServer implements Server {
@@ -108,10 +108,10 @@ index 9583ff67f17f60883f0c0564eb95c700c85674b4..a87f437f9ee7552141d681cb7174c4d0
      private final String serverVersion;
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
-@@ -403,7 +403,7 @@ public final class CraftServer implements Server {
-                 return player.getBukkitEntity();
-             }
-         }));
+@@ -399,7 +399,7 @@ public final class CraftServer implements Server {
+         this.console = console;
+         this.playerList = (DedicatedPlayerList) playerList;
+         this.playerView = MCUtil.transformUnmodifiable(playerList.getPlayers(), ServerPlayer::getBukkitEntity);
 -        this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
 +        this.serverVersion = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
          this.structureManager = new CraftStructureManager(console.getStructureManager(), console.registryAccess());
@@ -131,7 +131,7 @@ index c4dcddc4db02ed3641d05fae31ead7c13205f841..d2d1e28ea6759579a1415da6a4596a40
                  // (async tasks must live with race-conditions if they attempt to cancel between these few lines of code)
              }
 diff --git a/src/main/java/org/spigotmc/WatchdogThread.java b/src/main/java/org/spigotmc/WatchdogThread.java
-index 1ae6be6da9834168ac93c56007d63ec096f11762..54542848e559f44cbed696ba9cb489137379b62f 100644
+index 5607f4cc8ca2f620461eb5e97d01d9db0d6b2303..711fb44975029623233729a13fb8f10cc1b1afec 100644
 --- a/src/main/java/org/spigotmc/WatchdogThread.java
 +++ b/src/main/java/org/spigotmc/WatchdogThread.java
 @@ -25,7 +25,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
@@ -174,7 +174,7 @@ index 1ae6be6da9834168ac93c56007d63ec096f11762..54542848e559f44cbed696ba9cb48913
 -                logger.log(Level.SEVERE, "Server thread dump (Look for plugins here before reporting to Paper!):"); // Paper
 +                logger.log(Level.SEVERE, "Server thread dump (Look for plugins here before reporting to DeerFolia!):"); // DeerFolia
                  FeatureHooks.dumpAllChunkLoadInfo(MinecraftServer.getServer(), isLongTimeout); // Paper - log detailed tick information
-                 WatchdogThread.dumpThread(ManagementFactory.getThreadMXBean().getThreadInfo(MinecraftServer.getServer().serverThread.threadId(), Integer.MAX_VALUE), logger);
+                 WatchdogThread.dumpThread(ManagementFactory.getThreadMXBean().getThreadInfo(MinecraftServer.getServer().getRunningThread().threadId(), Integer.MAX_VALUE), logger);
                  logger.log(Level.SEVERE, "------------------------------");
 @@ -120,7 +120,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
                          WatchdogThread.dumpThread(thread, logger);

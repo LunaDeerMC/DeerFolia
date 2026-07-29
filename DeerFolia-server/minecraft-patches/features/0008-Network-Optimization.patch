@@ -5,7 +5,7 @@ Subject: [PATCH] Network Optimization
 
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index 1e1cb2aaec7037d16f3e91092e013c06bb1a7065..6d07881b8076139d02eccb7e16b870e6cc003bf2 100644
+index 4ddb5e7ce3529466c3930caa9aa6b18158e9a63d..3eb3717c0d0cc74eaecd059289bc6041386cdb77 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -235,9 +235,9 @@ public class Commands {
@@ -22,7 +22,7 @@ index 1e1cb2aaec7037d16f3e91092e013c06bb1a7065..6d07881b8076139d02eccb7e16b870e6
          //ScheduleCommand.register(this.dispatcher); // Folia - region threading
          //ScoreboardCommand.register(this.dispatcher, context); // Folia - region threading
 diff --git a/net/minecraft/network/Varint21FrameDecoder.java b/net/minecraft/network/Varint21FrameDecoder.java
-index 3b759845675d23ce26c21c72bab7a1863a5e2299..17190be158cdd05d101c25a370275388d381df30 100644
+index a490f5e09a6d615fa939c9838b19bc32680d8069..e6dcdbefe9b6e38d455bd14aa6364659615b374b 100644
 --- a/net/minecraft/network/Varint21FrameDecoder.java
 +++ b/net/minecraft/network/Varint21FrameDecoder.java
 @@ -38,6 +38,33 @@ public class Varint21FrameDecoder extends ByteToMessageDecoder {
@@ -90,30 +90,30 @@ index 3b759845675d23ce26c21c72bab7a1863a5e2299..17190be158cdd05d101c25a370275388
          this.helperBuf.clear();
          if (!copyVarint(in, this.helperBuf)) {
 diff --git a/net/minecraft/network/Varint21LengthFieldPrepender.java b/net/minecraft/network/Varint21LengthFieldPrepender.java
-index f6a1d6627622c162a824262e7d2b9cb603f9211a..cdc43530d7cf4c74906800bdd8712bc6b9159e71 100644
+index a3f3684a6f00cd0238c5f6122d449814700eab60..51f75aa1f41e525b9738514681d8b816ffb91a9a 100644
 --- a/net/minecraft/network/Varint21LengthFieldPrepender.java
 +++ b/net/minecraft/network/Varint21LengthFieldPrepender.java
-@@ -17,6 +17,23 @@ public class Varint21LengthFieldPrepender extends MessageToByteEncoder<ByteBuf>
-         if (headerLength > 3) {
+@@ -18,6 +18,23 @@ public class Varint21LengthFieldPrepender extends MessageToByteEncoder<ByteBuf>
              throw new EncoderException("Packet too large: size " + bodyLength + " is over 8");
-         } else {
-+            // DeerFolia start - Optimized frame encoding
-+            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.networkOptimizations.optimizedFrameEncoding) {
-+                out.ensureWritable(headerLength + bodyLength);
-+                if (bodyLength < 128) {
-+                    out.writeByte(bodyLength);
-+                } else if (bodyLength < 16384) {
-+                    out.writeByte(bodyLength & 0x7F | 0x80);
-+                    out.writeByte(bodyLength >>> 7);
-+                } else {
-+                    out.writeByte(bodyLength & 0x7F | 0x80);
-+                    out.writeByte((bodyLength >>> 7) & 0x7F | 0x80);
-+                    out.writeByte(bodyLength >>> 14);
-+                }
-+                out.writeBytes(msg, msg.readerIndex(), bodyLength);
-+                return;
+         }
+ 
++        // DeerFolia start - Optimized frame encoding
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.networkOptimizations.optimizedFrameEncoding) {
++            out.ensureWritable(headerLength + bodyLength);
++            if (bodyLength < 128) {
++                out.writeByte(bodyLength);
++            } else if (bodyLength < 16384) {
++                out.writeByte(bodyLength & 0x7F | 0x80);
++                out.writeByte(bodyLength >>> 7);
++            } else {
++                out.writeByte(bodyLength & 0x7F | 0x80);
++                out.writeByte((bodyLength >>> 7) & 0x7F | 0x80);
++                out.writeByte(bodyLength >>> 14);
 +            }
-+            // DeerFolia end - Optimized frame encoding
-             out.ensureWritable(headerLength + bodyLength);
-             VarInt.write(out, bodyLength);
-             out.writeBytes(msg, msg.readerIndex(), bodyLength);
++            out.writeBytes(msg, msg.readerIndex(), bodyLength);
++            return;
++        }
++        // DeerFolia end - Optimized frame encoding
+         out.ensureWritable(headerLength + bodyLength);
+         VarInt.write(out, bodyLength);
+         out.writeBytes(msg, msg.readerIndex(), bodyLength);
