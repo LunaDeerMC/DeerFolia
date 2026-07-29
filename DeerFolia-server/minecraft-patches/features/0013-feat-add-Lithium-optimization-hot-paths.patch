@@ -1,0 +1,659 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zhangyuheng <zhangyuheng@lunadeer.cn>
+Date: Wed, 29 Jul 2026 11:55:30 +0800
+Subject: [PATCH] feat: add Lithium optimization hot paths
+
+
+diff --git a/net/minecraft/core/AxisCycle.java b/net/minecraft/core/AxisCycle.java
+index e3524e706e02683d891a8de1e552a0bd0595b0f4..9fc5c9a1831e50ea2932e274da8bf130d4ef9747 100644
+--- a/net/minecraft/core/AxisCycle.java
++++ b/net/minecraft/core/AxisCycle.java
+@@ -35,6 +35,17 @@ public enum AxisCycle {
+ 
+         @Override
+         public Direction.Axis cycle(final Direction.Axis axis) {
++            // DeerFolia start - Lithium: avoid modulo and array lookup
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.math) {
++                return switch (axis.ordinal()) {
++                    case 0 -> Direction.Axis.Y;
++                    case 1 -> Direction.Axis.Z;
++                    case 2 -> Direction.Axis.X;
++                    default -> throw new IllegalArgumentException("Unknown axis: " + axis);
++                };
++            }
++            // DeerFolia end - Lithium: avoid modulo and array lookup
+             return AXIS_VALUES[Math.floorMod(axis.ordinal() + 1, 3)];
+         }
+ 
+@@ -56,6 +67,17 @@ public enum AxisCycle {
+ 
+         @Override
+         public Direction.Axis cycle(final Direction.Axis axis) {
++            // DeerFolia start - Lithium: avoid modulo and array lookup
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.math) {
++                return switch (axis.ordinal()) {
++                    case 0 -> Direction.Axis.Z;
++                    case 1 -> Direction.Axis.X;
++                    case 2 -> Direction.Axis.Y;
++                    default -> throw new IllegalArgumentException("Unknown axis: " + axis);
++                };
++            }
++            // DeerFolia end - Lithium: avoid modulo and array lookup
+             return AXIS_VALUES[Math.floorMod(axis.ordinal() - 1, 3)];
+         }
+ 
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 986a811a86e831ed1d9e22b3efc37483acba2945..d3ca7c8ccd7941bb049636f2d6d63ca1bef90199 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -1167,6 +1167,17 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+     public void tickPrecipitation(final BlockPos pos) {
+         BlockPos topPos = this.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, pos);
+         BlockPos belowPos = topPos.below();
++        // DeerFolia start - Lithium: avoid biome/weather work when precipitation cannot change blocks
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world
++            && !this.isRaining()) {
++            BlockState belowState = this.getBlockState(belowPos);
++            if (!belowState.getFluidState().is(net.minecraft.world.level.material.Fluids.WATER)
++                || !(belowState.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)) {
++                return;
++            }
++        }
++        // DeerFolia end - Lithium: avoid biome/weather work when precipitation cannot change blocks
+         Biome biome = this.getBiome(topPos).value();
+         if (biome.shouldFreeze(this, belowPos)) {
+             org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockFormEvent(this, belowPos, Blocks.ICE.defaultBlockState(), Block.UPDATE_ALL, null); // CraftBukkit
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 7e931ecba9b5435fd618eb9f4fcf1d2d9ff4f7c0..365b1ae19ba790c9b37227a73726a69faeb0bae0 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -549,6 +549,15 @@ public abstract class Entity
+             collectIndirectPassengers(into, ((Entity)(Object)passenger).passengers);
+         }
+     }
++
++    // DeerFolia start - Lithium: depth-first passenger collection without stream allocations
++    private static void collectIndirectPassengersDepthFirst(final List<Entity> into, final List<Entity> from) {
++        for (final Entity passenger : from) {
++            collectIndirectPassengersDepthFirst(into, ((Entity)(Object)passenger).passengers);
++            into.add(passenger);
++        }
++    }
++    // DeerFolia end - Lithium: depth-first passenger collection without stream allocations
+     // Paper end - optimise entity tracker
+     // Folia start - region ticking
+     public void updateTicks(long fromTickOffset, long fromRedstoneTimeOffset) {
+@@ -908,9 +917,14 @@ public abstract class Entity
+         }
+ 
+         //if (this instanceof ServerPlayer) this.handlePortal(); // CraftBukkit - Moved up to postTick // Folia - region threading - ONLY allow in postTick()
+-        if (this.canSpawnSprintParticle()) {
++        // DeerFolia start - Lithium: sprint particles are client-only
++        if ((!cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                || !cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.entity
++                || this.level().isClientSide())
++            && this.canSpawnSprintParticle()) {
+             this.spawnSprintParticle();
+         }
++        // DeerFolia end - Lithium: sprint particles are client-only
+ 
+         this.wasInPowderSnow = this.isInPowderSnow;
+         this.isInPowderSnow = false;
+@@ -5619,18 +5633,44 @@ public abstract class Entity
+ 
+     private Stream<Entity> getIndirectPassengersStream() {
+         if (this.passengers.isEmpty()) { return Stream.of(); } // Paper - Optimize indirect passenger iteration
++        // DeerFolia start - Lithium: avoid recursive stream allocations
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++            List<Entity> indirectPassengers = new ArrayList<>();
++            collectIndirectPassengers(indirectPassengers, this.passengers);
++            return indirectPassengers.stream();
++        }
++        // DeerFolia end - Lithium: avoid recursive stream allocations
+         return this.passengers.stream().flatMap(Entity::getSelfAndPassengers);
+     }
+ 
+     @Override
+     public Stream<Entity> getSelfAndPassengers() {
+         if (this.passengers.isEmpty()) { return Stream.of(this); } // Paper - Optimize indirect passenger iteration
++        // DeerFolia start - Lithium: avoid recursive stream allocations
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++            List<Entity> selfAndPassengers = new ArrayList<>();
++            selfAndPassengers.add(this);
++            collectIndirectPassengers(selfAndPassengers, this.passengers);
++            return selfAndPassengers.stream();
++        }
++        // DeerFolia end - Lithium: avoid recursive stream allocations
+         return Stream.concat(Stream.of(this), this.getIndirectPassengersStream());
+     }
+ 
+     @Override
+     public Stream<Entity> getPassengersAndSelf() {
+         if (this.passengers.isEmpty()) { return Stream.of(this); } // Paper - Optimize indirect passenger iteration
++        // DeerFolia start - Lithium: avoid recursive stream allocations
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++            List<Entity> passengersAndSelf = new ArrayList<>();
++            collectIndirectPassengersDepthFirst(passengersAndSelf, this.passengers);
++            passengersAndSelf.add(this);
++            return passengersAndSelf.stream();
++        }
++        // DeerFolia end - Lithium: avoid recursive stream allocations
+         return Stream.concat(this.passengers.stream().flatMap(Entity::getPassengersAndSelf), Stream.of(this));
+     }
+ 
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 1cb8265c1313ad4893d45c344b03007fc4e2de4b..3586ca731ef0e45e6bbdf8ccdb6cf2162b989bf3 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -581,6 +581,22 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     }
+ 
+     protected void tryAddFrost() {
++        // DeerFolia start - Lithium: delay the block lookup until an entity is actually frozen
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.entity) {
++            int ticksFrozen = this.getTicksFrozen();
++            if (ticksFrozen > 0 && !this.getBlockStateOnLegacy().isAir()) {
++                AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
++                if (speed == null) {
++                    return;
++                }
++
++                float slowAmount = -0.05F * this.getPercentFrozen();
++                speed.addTransientModifier(new AttributeModifier(SPEED_MODIFIER_POWDER_SNOW_ID, slowAmount, AttributeModifier.Operation.ADD_VALUE));
++            }
++            return;
++        }
++        // DeerFolia end - Lithium: delay the block lookup until an entity is actually frozen
+         if (!this.getBlockStateOnLegacy().isAir()) {
+             int ticksFrozen = this.getTicksFrozen();
+             if (ticksFrozen > 0) {
+@@ -2815,6 +2831,13 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     }
+ 
+     protected void updateSwingTime() {
++        // DeerFolia start - Lithium: skip swing duration lookup for inactive animations
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.entity
++            && !this.swinging && this.swingTime == 0) {
++            return;
++        }
++        // DeerFolia end - Lithium: skip swing duration lookup for inactive animations
+         int currentSwingDuration = this.getCurrentSwingDuration();
+         if (this.swinging) {
+             this.swingTime++;
+@@ -3870,6 +3893,13 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     protected void updateFallFlying() {
+         this.checkFallDistanceAccumulation();
+         if (!this.level().isClientSide()) {
++            // DeerFolia start - Lithium: skip glide equipment checks for grounded entities
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.entity
++                && !this.isFallFlying() && this.fallFlyTicks == 0) {
++                return;
++            }
++            // DeerFolia end - Lithium: skip glide equipment checks for grounded entities
+             if (!this.canGlide()) {
+                 if (this.getSharedFlag(Entity.FLAG_FALL_FLYING) && !CraftEventFactory.callToggleGlideEvent(this, false).isCancelled()) // CraftBukkit
+                 this.setSharedFlag(Entity.FLAG_FALL_FLYING, false);
+diff --git a/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+index 68bad6752bd313ca3ebde7fd4e3b2c46c5dee3ef..618014d700ca24dd03b677b37940ed8696160869 100644
+--- a/net/minecraft/world/entity/ai/attributes/AttributeMap.java
++++ b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+@@ -3,6 +3,7 @@ package net.minecraft.world.entity.ai.attributes;
+ import com.google.common.collect.Multimap;
+ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
++import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.List;
+@@ -15,12 +16,24 @@ import org.jspecify.annotations.Nullable;
+ 
+ public class AttributeMap {
+     private final Map<Holder<Attribute>, AttributeInstance> attributes = new Object2ObjectOpenHashMap<>();
+-    private final Set<AttributeInstance> attributesToSync = new ObjectOpenHashSet<>();
+-    private final Set<AttributeInstance> attributesToUpdate = new ObjectOpenHashSet<>();
++    // DeerFolia start - Lithium: identity sets avoid unnecessary equality/hash work
++    private final Set<AttributeInstance> attributesToSync;
++    private final Set<AttributeInstance> attributesToUpdate;
++    // DeerFolia end - Lithium: identity sets avoid unnecessary equality/hash work
+     private final AttributeSupplier supplier;
+ 
+     public AttributeMap(final AttributeSupplier supplier) {
+         this.supplier = supplier;
++        // DeerFolia start - Lithium: identity sets avoid unnecessary equality/hash work
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.collections) {
++            this.attributesToSync = new ReferenceOpenHashSet<>(0);
++            this.attributesToUpdate = new ReferenceOpenHashSet<>(0);
++        } else {
++            this.attributesToSync = new ObjectOpenHashSet<>();
++            this.attributesToUpdate = new ObjectOpenHashSet<>();
++        }
++        // DeerFolia end - Lithium: identity sets avoid unnecessary equality/hash work
+     }
+ 
+     private void onAttributeModified(final AttributeInstance attributeInstance) {
+diff --git a/net/minecraft/world/entity/ai/behavior/GateBehavior.java b/net/minecraft/world/entity/ai/behavior/GateBehavior.java
+index 3adfb334068d3722329f91011c41d5e59b1956c9..9d58ffe52a6bc1d5e4646b63cadc050945bdc286 100644
+--- a/net/minecraft/world/entity/ai/behavior/GateBehavior.java
++++ b/net/minecraft/world/entity/ai/behavior/GateBehavior.java
+@@ -79,15 +79,22 @@ public class GateBehavior<E extends LivingEntity> implements BehaviorControl<E>
+     @Override
+     public final void tickOrStop(final ServerLevel level, final E body, final long timestamp) {
+         // Paper start - Perf: Remove streams from hot code
++        // DeerFolia start - Lithium: fold the running check into the behavior tick loop
++        boolean hasRunningBehavior = false;
+         for (final BehaviorControl<? super E> behavior : this.behaviors) {
+             if (behavior.getStatus() == Behavior.Status.RUNNING) {
+                 behavior.tickOrStop(level, body, timestamp);
++                hasRunningBehavior |= behavior.getStatus() == Behavior.Status.RUNNING;
+             }
+         }
+         // Paper end - Perf: Remove streams from hot code
+-        if (this.behaviors.stream().noneMatch(behavior -> behavior.getStatus() == Behavior.Status.RUNNING)) {
++        if ((!cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                || !cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.ai)
++            ? this.behaviors.stream().noneMatch(behavior -> behavior.getStatus() == Behavior.Status.RUNNING)
++            : !hasRunningBehavior) {
+             this.doStop(level, body, timestamp);
+         }
++        // DeerFolia end - Lithium: fold the running check into the behavior tick loop
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/entity/ai/sensing/TemptingSensor.java b/net/minecraft/world/entity/ai/sensing/TemptingSensor.java
+index f5a1d35d41167d794409b4a585a7dc0f16ff8d96..b6d1615fdc7e187c12c0c1567d1318b05e576b23 100644
+--- a/net/minecraft/world/entity/ai/sensing/TemptingSensor.java
++++ b/net/minecraft/world/entity/ai/sensing/TemptingSensor.java
+@@ -38,16 +38,36 @@ public class TemptingSensor extends Sensor<PathfinderMob> {
+     protected void doTick(final ServerLevel level, final PathfinderMob body) {
+         Brain<?> brain = body.getBrain();
+         TargetingConditions targeting = TEMPT_TARGETING.copy().range((float)body.getAttributeValue(Attributes.TEMPT_RANGE));
+-        List<Player> players = level.getLocalPlayers() // Folia - region threading
+-            .stream()
+-            .filter(EntitySelector.NO_SPECTATORS)
+-            .filter(playerx -> targeting.test(level, body, playerx))
+-            .filter(p -> this.playerHoldingTemptation(body, p))
+-            .filter(playerx -> !body.hasPassenger(playerx))
+-            .sorted(Comparator.comparingDouble(body::distanceToSqr))
+-            .collect(Collectors.toList());
+-        if (!players.isEmpty()) {
+-            Player player = players.get(0);
++        // DeerFolia start - Lithium: find the closest tempting player without stream allocations
++        Player player;
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.ai) {
++            player = null;
++            double closestDistance = Double.MAX_VALUE;
++            for (Player candidate : level.getLocalPlayers()) { // Folia - region threading
++                if (EntitySelector.NO_SPECTATORS.test(candidate)
++                    && targeting.test(level, body, candidate)
++                    && this.playerHoldingTemptation(body, candidate)
++                    && !body.hasPassenger(candidate)) {
++                    double distance = body.distanceToSqr(candidate);
++                    if (distance < closestDistance) {
++                        closestDistance = distance;
++                        player = candidate;
++                    }
++                }
++            }
++        } else {
++            List<Player> players = level.getLocalPlayers() // Folia - region threading
++                .stream()
++                .filter(EntitySelector.NO_SPECTATORS)
++                .filter(playerx -> targeting.test(level, body, playerx))
++                .filter(p -> this.playerHoldingTemptation(body, p))
++                .filter(playerx -> !body.hasPassenger(playerx))
++                .sorted(Comparator.comparingDouble(body::distanceToSqr))
++                .collect(Collectors.toList());
++            player = players.isEmpty() ? null : players.get(0);
++        }
++        if (player != null) {
+             // CraftBukkit start
+             org.bukkit.event.entity.EntityTargetLivingEntityEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityTargetLivingEvent(
+                 body, player, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TEMPT
+@@ -64,6 +84,7 @@ public class TemptingSensor extends Sensor<PathfinderMob> {
+         } else {
+             brain.eraseMemory(MemoryModuleType.TEMPTING_PLAYER);
+         }
++        // DeerFolia end - Lithium: find the closest tempting player without stream allocations
+     }
+ 
+     private boolean playerHoldingTemptation(final PathfinderMob mob, final Player player) {
+diff --git a/net/minecraft/world/entity/raid/Raid.java b/net/minecraft/world/entity/raid/Raid.java
+index 32e20979b9343efa6b5903c7b6baf351205654a0..f8b60342eae3d20520000de25bc9f0865785c9c5 100644
+--- a/net/minecraft/world/entity/raid/Raid.java
++++ b/net/minecraft/world/entity/raid/Raid.java
+@@ -132,6 +132,8 @@ public class Raid {
+     private Raid.RaidStatus status;
+     private int celebrationTicks;
+     private Optional<BlockPos> waveSpawnPos = Optional.empty();
++    // DeerFolia - Lithium: coalesce repeated raid health updates into one update per tick
++    private boolean lithiumBossbarDirty;
+ 
+     // Folia start - make raids thread-safe
+     public boolean ownsRaid(ServerLevel world) {
+@@ -291,6 +293,14 @@ public class Raid {
+     }
+ 
+     public void tick(final ServerLevel level) {
++        // DeerFolia start - Lithium: coalesce repeated raid health updates
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.ai
++            && this.lithiumBossbarDirty) {
++            this.raidEvent.setProgress(Mth.clamp(this.getHealthOfLivingRaiders() / this.totalHealth, 0.0F, 1.0F));
++            this.lithiumBossbarDirty = false;
++        }
++        // DeerFolia end - Lithium: coalesce repeated raid health updates
+         if (!this.isStopped()) {
+             if (this.status == Raid.RaidStatus.ONGOING) {
+                 boolean oldActive = this.active;
+@@ -632,6 +642,13 @@ public class Raid {
+     }
+ 
+     public void updateBossbar() {
++        // DeerFolia start - Lithium: coalesce repeated raid health updates
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.ai) {
++            this.lithiumBossbarDirty = true;
++            return;
++        }
++        // DeerFolia end - Lithium: coalesce repeated raid health updates
+         this.raidEvent.setProgress(Mth.clamp(this.getHealthOfLivingRaiders() / this.totalHealth, 0.0F, 1.0F));
+     }
+ 
+diff --git a/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java b/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java
+index 356a3a0dda09af007c3fbddfe360b38f4d7204ce..f8f3cfeed100e7433ad20c8d6baf7485442633d8 100644
+--- a/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java
++++ b/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java
+@@ -17,6 +17,22 @@ public class EntityBasedExplosionDamageCalculator extends ExplosionDamageCalcula
+     public Optional<Float> getBlockExplosionResistance(
+         final Explosion explosion, final BlockGetter level, final BlockPos pos, final BlockState block, final FluidState fluid
+     ) {
++        // DeerFolia start - Lithium: avoid lambda and Optional allocation in explosion raycasts
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++            Optional<Float> resistance = super.getBlockExplosionResistance(explosion, level, pos, block, fluid);
++            if (resistance.isPresent()) {
++                float originalResistance = resistance.get();
++                float effectiveResistance = this.source.getBlockExplosionResistance(
++                    explosion, level, pos, block, fluid, originalResistance
++                );
++                if (effectiveResistance != originalResistance) {
++                    return Optional.of(effectiveResistance);
++                }
++            }
++            return resistance;
++        }
++        // DeerFolia end - Lithium: avoid lambda and Optional allocation in explosion raycasts
+         return super.getBlockExplosionResistance(explosion, level, pos, block, fluid)
+             .map(resistance -> this.source.getBlockExplosionResistance(explosion, level, pos, block, fluid, resistance));
+     }
+diff --git a/net/minecraft/world/level/biome/Biome.java b/net/minecraft/world/level/biome/Biome.java
+index afa97f1c8a0fcd49aec962eaa6f5c9cda0e0cefa..b87aa3a12b6f127faeab6e4446d7fbd9c9252054 100644
+--- a/net/minecraft/world/level/biome/Biome.java
++++ b/net/minecraft/world/level/biome/Biome.java
+@@ -137,7 +137,10 @@ public final class Biome {
+ 
+         if (level.isInsideBuildHeight(pos.getY()) && level.getBrightness(LightLayer.BLOCK, pos) < 10) {
+             BlockState blockState = level.getBlockState(pos);
+-            FluidState fluidState = level.getFluidState(pos);
++            // DeerFolia - Lithium: reuse the already fetched block state
++            FluidState fluidState = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world
++                ? blockState.getFluidState() : level.getFluidState(pos);
+             if (fluidState.is(Fluids.WATER) && blockState.getBlock() instanceof LiquidBlock) {
+                 if (!checkNeighbors) {
+                     return true;
+diff --git a/net/minecraft/world/level/block/ComposterBlock.java b/net/minecraft/world/level/block/ComposterBlock.java
+index 69e3969242ad52168e947af209e6fa72f36178ae..9a9eda92e68e63e5d09427d42154afeebc0dc360 100644
+--- a/net/minecraft/world/level/block/ComposterBlock.java
++++ b/net/minecraft/world/level/block/ComposterBlock.java
+@@ -434,6 +434,11 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+         @Override
+         public int[] getSlotsForFace(final Direction direction) {
++            // DeerFolia - Lithium: avoid allocating an empty slot array
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++                return cn.lunadeer.mc.deerfolia.lithium.LithiumArrayConstants.EMPTY;
++            }
+             return new int[0];
+         }
+ 
+@@ -469,6 +474,13 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+         @Override
+         public int[] getSlotsForFace(final Direction direction) {
++            // DeerFolia - Lithium: avoid allocating sided slot arrays
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++                return direction == Direction.UP
++                    ? cn.lunadeer.mc.deerfolia.lithium.LithiumArrayConstants.ZERO
++                    : cn.lunadeer.mc.deerfolia.lithium.LithiumArrayConstants.EMPTY;
++            }
+             return direction == Direction.UP ? new int[]{0} : new int[0];
+         }
+ 
+@@ -520,6 +532,13 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+         @Override
+         public int[] getSlotsForFace(final Direction direction) {
++            // DeerFolia - Lithium: avoid allocating sided slot arrays
++            if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations) {
++                return direction == Direction.DOWN
++                    ? cn.lunadeer.mc.deerfolia.lithium.LithiumArrayConstants.ZERO
++                    : cn.lunadeer.mc.deerfolia.lithium.LithiumArrayConstants.EMPTY;
++            }
+             return direction == Direction.DOWN ? new int[]{0} : new int[0];
+         }
+ 
+diff --git a/net/minecraft/world/level/block/RedStoneWireBlock.java b/net/minecraft/world/level/block/RedStoneWireBlock.java
+index 957c45b39e9d6f74fb9791ecd121b0e2bd6bc732..7b4e0c8518c495ba19e4a46c422d5c930121223d 100644
+--- a/net/minecraft/world/level/block/RedStoneWireBlock.java
++++ b/net/minecraft/world/level/block/RedStoneWireBlock.java
+@@ -350,9 +350,13 @@ public class RedStoneWireBlock extends Block {
+         if (level.getBlockState(pos).is(this)) {
+             level.updateNeighborsAt(pos, this);
+ 
+-            for (Direction direction : Direction.values()) {
++            // DeerFolia start - Lithium: avoid Direction.values() allocation
++            for (Direction direction : cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations
++                ? cn.lunadeer.mc.deerfolia.lithium.LithiumDirectionConstants.ALL : Direction.values()) {
+                 level.updateNeighborsAt(pos.relative(direction), this);
+             }
++            // DeerFolia end - Lithium: avoid Direction.values() allocation
+         }
+     }
+ 
+@@ -378,9 +382,13 @@ public class RedStoneWireBlock extends Block {
+     @Override
+     protected void affectNeighborsAfterRemoval(final BlockState state, final ServerLevel level, final BlockPos pos, final boolean movedByPiston) {
+         if (!movedByPiston) {
+-            for (Direction direction : Direction.values()) {
++            // DeerFolia start - Lithium: avoid Direction.values() allocation
++            for (Direction direction : cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations
++                ? cn.lunadeer.mc.deerfolia.lithium.LithiumDirectionConstants.ALL : Direction.values()) {
+                 level.updateNeighborsAt(pos.relative(direction), this);
+             }
++            // DeerFolia end - Lithium: avoid Direction.values() allocation
+ 
+             // Paper start - optimize redstone - replace call to updatePowerStrength
+             if (level.paperConfig().misc.redstoneImplementation == io.papermc.paper.configuration.WorldConfiguration.Misc.RedstoneImplementation.ALTERNATE_CURRENT) {
+diff --git a/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+index b4f5d462e4012451328210018c24de5a1d9e8c2e..dcddbcd3e01b0133560a187f04d2304345422406 100644
+--- a/net/minecraft/world/level/block/piston/PistonBaseBlock.java
++++ b/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+@@ -126,7 +126,10 @@ public class PistonBaseBlock extends DirectionalBlock {
+     }
+ 
+     private boolean getNeighborSignal(final SignalGetter level, final BlockPos pos, final Direction pushDirection) {
+-        for (Direction direction : Direction.values()) {
++        // DeerFolia start - Lithium: avoid Direction.values() allocation
++        for (Direction direction : cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations
++            ? cn.lunadeer.mc.deerfolia.lithium.LithiumDirectionConstants.ALL : Direction.values()) {
+             if (direction != pushDirection && level.hasSignal(pos.relative(direction), direction)) {
+                 return true;
+             }
+@@ -138,11 +141,14 @@ public class PistonBaseBlock extends DirectionalBlock {
+ 
+         BlockPos above = pos.above();
+ 
+-        for (Direction direction : Direction.values()) {
++        for (Direction direction : cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations
++            ? cn.lunadeer.mc.deerfolia.lithium.LithiumDirectionConstants.ALL : Direction.values()) {
+             if (direction != Direction.DOWN && level.hasSignal(above.relative(direction), direction)) {
+                 return true;
+             }
+         }
++        // DeerFolia end - Lithium: avoid Direction.values() allocation
+ 
+         return false;
+     }
+diff --git a/net/minecraft/world/level/block/piston/PistonStructureResolver.java b/net/minecraft/world/level/block/piston/PistonStructureResolver.java
+index 4a2cd2241a65fe051aae0b87e33580784bd9c2cb..538ccf394575e98f6b824bc950392b57cf00ad4b 100644
+--- a/net/minecraft/world/level/block/piston/PistonStructureResolver.java
++++ b/net/minecraft/world/level/block/piston/PistonStructureResolver.java
+@@ -175,7 +175,10 @@ public class PistonStructureResolver {
+     private boolean addBranchingBlocks(final BlockPos fromPos) {
+         BlockState fromState = this.level.getBlockState(fromPos);
+ 
+-        for (Direction direction : Direction.values()) {
++        // DeerFolia start - Lithium: avoid Direction.values() allocation
++        for (Direction direction : cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.allocations
++            ? cn.lunadeer.mc.deerfolia.lithium.LithiumDirectionConstants.ALL : Direction.values()) {
+             if (direction.getAxis() != this.pushDirection.getAxis()) {
+                 BlockPos neighbourPos = fromPos.relative(direction);
+                 BlockState neighbourState = this.level.getBlockState(neighbourPos);
+@@ -184,6 +187,7 @@ public class PistonStructureResolver {
+                 }
+             }
+         }
++        // DeerFolia end - Lithium: avoid Direction.values() allocation
+ 
+         return true;
+     }
+diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+index 3f66d1144daf7139a91bfa35e2c288d88bbae38b..8a941a054308db7f826e190965cd2a1e71434f8a 100644
+--- a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
++++ b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+@@ -58,6 +58,8 @@ public final class NoiseBasedChunkGenerator extends ChunkGenerator {
+     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+     private final Holder<NoiseGeneratorSettings> settings;
+     private final Supplier<Aquifer.FluidPicker> globalFluidPicker;
++    // DeerFolia - Lithium: lazily cached after the settings holder is bound
++    private int cachedSeaLevel = Integer.MIN_VALUE;
+ 
+     public NoiseBasedChunkGenerator(final BiomeSource biomeSource, final Holder<NoiseGeneratorSettings> settings) {
+         super(biomeSource);
+@@ -483,6 +485,15 @@ public final class NoiseBasedChunkGenerator extends ChunkGenerator {
+ 
+     @Override
+     public int getSeaLevel() {
++        // DeerFolia start - Lithium: avoid repeated registry holder lookups
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world) {
++            if (this.cachedSeaLevel == Integer.MIN_VALUE) {
++                this.cachedSeaLevel = this.settings.value().seaLevel();
++            }
++            return this.cachedSeaLevel;
++        }
++        // DeerFolia end - Lithium: avoid repeated registry holder lookups
+         return this.settings.value().seaLevel();
+     }
+ 
+diff --git a/net/minecraft/world/level/material/FlowingFluid.java b/net/minecraft/world/level/material/FlowingFluid.java
+index e93c900385994d391242def7d022d06e6ef23861..c93326dd4d6776b2af7e10c0a78f44dfcbde168e 100644
+--- a/net/minecraft/world/level/material/FlowingFluid.java
++++ b/net/minecraft/world/level/material/FlowingFluid.java
+@@ -369,6 +369,13 @@ public abstract class FlowingFluid extends Fluid {
+     private boolean isWaterHole(
+         final BlockGetter level, final BlockPos topPos, final BlockState topState, final BlockPos bottomPos, final BlockState bottomState
+     ) {
++        // DeerFolia start - Lithium: run the cheaper fluid/container check first
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world) {
++            return (bottomState.getFluidState().getType().isSame(this) || canHoldFluid(level, bottomPos, bottomState, this.getFlowing()))
++                && canPassThroughWall(Direction.DOWN, level, topPos, topState, bottomPos, bottomState);
++        }
++        // DeerFolia end - Lithium: run the cheaper fluid/container check first
+         return canPassThroughWall(Direction.DOWN, level, topPos, topState, bottomPos, bottomState)
+             && (bottomState.getFluidState().getType().isSame(this) || canHoldFluid(level, bottomPos, bottomState, this.getFlowing()));
+     }
+@@ -383,6 +390,13 @@ public abstract class FlowingFluid extends Fluid {
+         final BlockState testState,
+         final FluidState testFluidState
+     ) {
++        // DeerFolia start - Lithium: run the cheaper target check first
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world) {
++            return canHoldSpecificFluid(level, testPos, testState, fluid)
++                && this.canMaybePassThrough(level, sourcePos, sourceState, direction, testPos, testState, testFluidState);
++        }
++        // DeerFolia end - Lithium: run the cheaper target check first
+         return this.canMaybePassThrough(level, sourcePos, sourceState, direction, testPos, testState, testFluidState)
+             && canHoldSpecificFluid(level, testPos, testState, fluid);
+     }
+@@ -468,7 +482,10 @@ public abstract class FlowingFluid extends Fluid {
+         return block instanceof LiquidBlockContainer
+             || !state.blocksMotion()
+                 && !(block instanceof DoorBlock)
+-                && !state.is(BlockTags.SIGNS)
++                // DeerFolia - Lithium: avoid a block-tag lookup for signs
++                && !(cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++                    && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world
++                    ? block instanceof net.minecraft.world.level.block.SignBlock : state.is(BlockTags.SIGNS))
+                 && !state.is(Blocks.LADDER)
+                 && !state.is(Blocks.SUGAR_CANE)
+                 && !state.is(Blocks.BUBBLE_COLUMN)
+diff --git a/net/minecraft/world/phys/AABB.java b/net/minecraft/world/phys/AABB.java
+index efb79617cebe7234d85721da7b7f1fd6ef1a6a73..732e9a2f85c756800a45c02b5252cfce2bb92382 100644
+--- a/net/minecraft/world/phys/AABB.java
++++ b/net/minecraft/world/phys/AABB.java
+@@ -80,10 +80,32 @@ public class AABB {
+     }
+ 
+     public double min(final Direction.Axis axis) {
++        // DeerFolia start - Lithium: avoid virtual Axis.choose dispatch
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.math) {
++            return switch (axis.ordinal()) {
++                case 0 -> this.minX;
++                case 1 -> this.minY;
++                case 2 -> this.minZ;
++                default -> throw new IllegalArgumentException("Unknown axis: " + axis);
++            };
++        }
++        // DeerFolia end - Lithium: avoid virtual Axis.choose dispatch
+         return axis.choose(this.minX, this.minY, this.minZ);
+     }
+ 
+     public double max(final Direction.Axis axis) {
++        // DeerFolia start - Lithium: avoid virtual Axis.choose dispatch
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.math) {
++            return switch (axis.ordinal()) {
++                case 0 -> this.maxX;
++                case 1 -> this.maxY;
++                case 2 -> this.maxZ;
++                default -> throw new IllegalArgumentException("Unknown axis: " + axis);
++            };
++        }
++        // DeerFolia end - Lithium: avoid virtual Axis.choose dispatch
+         return axis.choose(this.maxX, this.maxY, this.maxZ);
+     }
+ 

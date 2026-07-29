@@ -66,6 +66,29 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         public boolean optimizedFrameEncoding = true;
     }
 
+    @Comments({
+        "Lithium-derived optimizations",
+        "These options require a server restart to take effect"
+    })
+    public static LithiumOptimize lithiumOptimize = new LithiumOptimize();
+
+    public static class LithiumOptimize extends ConfigurationPart {
+        @Comments("Enable all Lithium-derived optimizations")
+        public boolean enabled = true;
+        @Comments("Reduce temporary allocations in frequently called code")
+        public boolean allocations = true;
+        @Comments("Optimize AI behavior iteration")
+        public boolean ai = true;
+        @Comments("Use identity-based collections for entity attributes")
+        public boolean collections = true;
+        @Comments("Skip unnecessary entity work and client-only particle logic")
+        public boolean entity = true;
+        @Comments("Use simpler math hot paths that are easier for the JVM to optimize")
+        public boolean math = true;
+        @Comments("Optimize world generation and weather-related ticking")
+        public boolean world = true;
+    }
+
     @Comments("POI (Point of Interest) Optimizations - Reduce CPU usage with many villagers")
     public static PoiOptimizations poiOptimizations = new PoiOptimizations();
 
