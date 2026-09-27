@@ -33,6 +33,22 @@ paperweight {
             patchesDir = file("DeerFolia-api/folia-patches")
             outputDir = file("folia-api")
         }
+        patchDir("foliaCheckstyle") {
+            upstreamPath = "folia-checkstyle"
+            excludes = listOf("build.gradle.kts.patch")
+            patchesDir = file("DeerFolia-checkstyle/folia-patches")
+            outputDir = file("folia-checkstyle")
+        }
+        patchRepo("paperCheckstyle") {
+            upstreamPath = "paper-checkstyle"
+            patchesDir = file("DeerFolia-checkstyle/paper-patches")
+            outputDir = file("paper-checkstyle")
+        }
+        patchRepo("paperCheckstyleConfig") {
+            upstreamPath = ".checkstyle"
+            patchesDir = file("DeerFolia-checkstyle/config-patches")
+            outputDir = file(".checkstyle")
+        }
     }
 
 }

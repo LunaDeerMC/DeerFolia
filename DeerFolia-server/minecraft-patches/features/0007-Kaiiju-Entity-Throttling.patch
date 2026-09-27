@@ -5,26 +5,19 @@ Subject: [PATCH] Kaiiju Entity Throttling
 
 
 diff --git a/io/papermc/paper/threadedregions/RegionizedWorldData.java b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-index cb15cfbc684ae9e9d9634886f707c2df10063139..3f9be68ac589e5652d90e7b4940cf1a99cc057c9 100644
+index c8f13da82c55cc5c1fe1c922a87e3eccb1117937..981458f6697a79dbc9fc8cf41c088c98e556c6dd 100644
 --- a/io/papermc/paper/threadedregions/RegionizedWorldData.java
 +++ b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-@@ -354,6 +354,7 @@ public final class RegionizedWorldData {
+@@ -349,6 +349,7 @@ public final class RegionizedWorldData {
      private final IteratorSafeOrderedReferenceSet<Mob> navigatingMobs = new IteratorSafeOrderedReferenceSet<>();
-     public final ReferenceList<Entity> trackerEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
-     public final ReferenceList<Entity> trackerUnloadedEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
+     public ReferenceList<Entity> trackerEntities = new ReferenceList<>(EMPTY_ENTITY_ARRAY); // Moonrise - entity tracker
+     public boolean iteratingTrackerEntities;
 +    public final dev.kaiijumc.kaiiju.KaiijuEntityThrottler entityThrottler = new dev.kaiijumc.kaiiju.KaiijuEntityThrottler(); // Kaiiju
  
      // block ticking
      private final ObjectLinkedOpenHashSet<BlockEventData> blockEvents = new ObjectLinkedOpenHashSet<>();
-@@ -770,4 +771,4 @@ public final class RegionizedWorldData {
-     public int getChunkCount() {
-         return this.chunks.size();
-     }
--}
-\ No newline at end of file
-+}
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 3700adc2ce56106179347d68b7f3049ecbe596e1..986a811a86e831ed1d9e22b3efc37483acba2945 100644
+index 1da424e504c7261b17847d8f515c60f05e46af34..5db0f59c38ebe2c927520da8c701595dc6adaa19 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -910,6 +910,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet

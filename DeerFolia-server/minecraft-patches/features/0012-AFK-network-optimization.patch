@@ -17,7 +17,7 @@ index 3eb3717c0d0cc74eaecd059289bc6041386cdb77..7328f6879e92cdeaa03562c34139c580
          RideCommand.register(this.dispatcher); // Folia - region threading - TODO later
          RotateCommand.register(this.dispatcher); // Folia - region threading - TODO later
 diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
-index 40f54536422fa38bd84017fc634808016b4de58b..5a7a73fa64960ad9638667eee8d1a0386e57a802 100644
+index c3922310ef1fce26eca60793b75bcb480683778a..ff3d0789329994cac171dba6f5c7cd9c46ac2d63 100644
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
 @@ -75,6 +75,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
@@ -74,7 +74,7 @@ index 40f54536422fa38bd84017fc634808016b4de58b..5a7a73fa64960ad9638667eee8d1a038
          packet.onPacketDispatch(this.getPlayer());
          if (false && connected && (InnerUtil.canSendImmediate(this, packet) // Folia - region threading - connection fixes
              || (io.papermc.paper.util.MCUtil.isMainThread() && packet.isReady() && this.pendingActions.isEmpty()
-@@ -868,6 +887,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -909,6 +928,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      public void setupCompression(final int threshold, final boolean validateDecompressed) {
          if (threshold >= 0) {
@@ -82,7 +82,7 @@ index 40f54536422fa38bd84017fc634808016b4de58b..5a7a73fa64960ad9638667eee8d1a038
              com.velocitypowered.natives.compression.VelocityCompressor compressor = com.velocitypowered.natives.util.Natives.compress.get().create(io.papermc.paper.configuration.GlobalConfiguration.get().misc.compressionLevel.or(-1)); // Paper - Use Velocity cipher
              if (this.channel.pipeline().get(HandlerNames.DECOMPRESS) instanceof CompressionDecoder compressionDecoder) {
                  compressionDecoder.setThreshold(compressor, threshold, validateDecompressed); // Paper - Use Velocity cipher
-@@ -882,6 +902,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -923,6 +943,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              }
              this.channel.pipeline().fireUserEventTriggered(io.papermc.paper.network.ConnectionEvent.COMPRESSION_THRESHOLD_SET); // Paper - Add Channel initialization listeners
          } else {
@@ -91,7 +91,7 @@ index 40f54536422fa38bd84017fc634808016b4de58b..5a7a73fa64960ad9638667eee8d1a038
                  this.channel.pipeline().remove(HandlerNames.DECOMPRESS);
              }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..bde2c738181eea110ca693080f38f896d87cea55 100644
+index 16f49ae6736c475207f31392307e280ec06edbc3..0e7375f7126318a25dd199919688e4fb0ab89d96 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -2996,6 +2996,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -103,7 +103,7 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..bde2c738181eea110ca693080f38f896
  
      public ServerStatsCounter getStats() {
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020cea5477547 100644
+index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a1304e959 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -571,6 +571,14 @@ public class ServerGamePacketListenerImpl
@@ -121,7 +121,7 @@ index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020ce
              Entity vehicle = this.player.getRootVehicle();
              // Paper start - Don't allow vehicle movement from players while teleporting
              if (this.awaitingPositionFromClient != null || this.player.isImmobile() || vehicle.isRemoved()) {
-@@ -1519,6 +1527,16 @@ public class ServerGamePacketListenerImpl
+@@ -1520,6 +1528,16 @@ public class ServerGamePacketListenerImpl
          if (containsInvalidValues(packet.getX(0.0), packet.getY(0.0), packet.getZ(0.0), packet.getYRot(0.0F), packet.getXRot(0.0F))) {
              this.disconnect(Component.translatable("multiplayer.disconnect.invalid_player_movement"), org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PLAYER_MOVEMENT); // Paper - kick event cause
          } else {
@@ -138,7 +138,7 @@ index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020ce
              ServerLevel level = this.player.level();
              if (!this.player.wonGame && !this.player.isImmobile()) { // CraftBukkit
                  if (this.tickCount == 0) {
-@@ -2320,6 +2338,7 @@ public class ServerGamePacketListenerImpl
+@@ -2321,6 +2339,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void onDisconnect(final DisconnectionDetails details) {
@@ -146,7 +146,7 @@ index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020ce
          LOGGER.info("{} lost connection: {}", this.player.getPlainTextName(), details.reason().getString());
          // Paper start - Fix kick event leave message not being sent
          final net.kyori.adventure.text.Component quitMessage = details.quitMessage().map(io.papermc.paper.adventure.PaperAdventure::asAdventure).orElse(null);
-@@ -2402,6 +2421,7 @@ public class ServerGamePacketListenerImpl
+@@ -2403,6 +2422,7 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -154,7 +154,7 @@ index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020ce
          Optional<LastSeenMessages> unpackedLastSeen = this.unpackAndApplyLastSeen(packet.lastSeenMessages());
          if (!unpackedLastSeen.isEmpty()) {
              this.tryHandleChat(packet.message(), false, () -> {
-@@ -2426,6 +2446,7 @@ public class ServerGamePacketListenerImpl
+@@ -2427,6 +2447,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void handleChatCommand(final ServerboundChatCommandPacket packet) {
@@ -162,7 +162,7 @@ index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020ce
          this.tryHandleChat(packet.command(), true, () -> {
              // CraftBukkit start - SPIGOT-7346: Prevent disconnected players from executing commands
              if (this.player.hasDisconnected()) {
-@@ -2465,6 +2486,7 @@ public class ServerGamePacketListenerImpl
+@@ -2466,6 +2487,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void handleSignedChatCommand(final ServerboundChatCommandSignedPacket packet) {
@@ -171,7 +171,7 @@ index c1faaf7d514c23d756aa626fa93aabd8bb503463..90f78bcb8658c13dcdb70915317020ce
          if (!unpackedLastSeen.isEmpty()) {
              this.tryHandleChat(packet.command(), true, () -> {
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index e7579a9873362317dd82b63306cf650af9472574..d5a30d38709c9f55fef6032dcf0121d281e64eaf 100644
+index 259eb7574841b1b885093b534440f8a40db4e8e2..35ab16c2a8f03ea02e5bdb6c4b259d6149212746 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -233,6 +233,7 @@ public abstract class PlayerList {
@@ -181,4 +181,4 @@ index e7579a9873362317dd82b63306cf650af9472574..d5a30d38709c9f55fef6032dcf0121d2
 +        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.onLogin(player); // DeerFolia - reset AFK network state for a fresh login
          // Folia start - rewrite login process
          // only after setting the connection listener to game type, add the connection to this regions list
-         level.getCurrentWorldData().connections.add(connection);
+         level.getCurrentWorldData().addConnection(player);

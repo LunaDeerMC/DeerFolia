@@ -115,7 +115,7 @@ index 6bdc94f4de3a3190907fe0b0325223ad31a600e9..7721bed051f4b6f970d09e2cebe89fdb
      }
  
 diff --git a/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java b/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java
-index ec12508c112b1e7748a5d197b73a0d540bed10fc..288973333a7bb66ab875be2207c4469725d2d3c2 100644
+index 7d3e843c2d3c5e15b7bea7302d6118419d3a4957..3ec702599fca678f5cbd387324b99aad19c66581 100644
 --- a/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java
 +++ b/net/minecraft/world/entity/ai/sensing/SecondaryPoiSensor.java
 @@ -17,11 +17,24 @@ public class SecondaryPoiSensor extends Sensor<Villager> {
@@ -145,7 +145,7 @@ index ec12508c112b1e7748a5d197b73a0d540bed10fc..288973333a7bb66ab875be2207c44697
          BlockPos center = body.blockPosition();
          List<GlobalPos> jobSites = Lists.newArrayList();
 diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
-index 4897fb27199a17f99fce030b9c3659640a8723b4..9399522991ef605c191187105e6f78c865d3d1b4 100644
+index d8eab1481f5b83c8cb674b786df96b93af7a607b..b6c2bc7f037ba0b22c841e34174968af42e44d92 100644
 --- a/net/minecraft/world/entity/npc/villager/Villager.java
 +++ b/net/minecraft/world/entity/npc/villager/Villager.java
 @@ -183,6 +183,7 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re

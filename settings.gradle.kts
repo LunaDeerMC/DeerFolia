@@ -14,3 +14,5 @@ rootProject.name = "DeerFolia"
 
 include("DeerFolia-api")
 include("DeerFolia-server")
+file("folia-checkstyle").mkdirs()
+include("folia-checkstyle")

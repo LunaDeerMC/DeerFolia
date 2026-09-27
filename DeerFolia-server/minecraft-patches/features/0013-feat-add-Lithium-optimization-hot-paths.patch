@@ -45,7 +45,7 @@ index e3524e706e02683d891a8de1e552a0bd0595b0f4..9fc5c9a1831e50ea2932e274da8bf130
          }
  
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 986a811a86e831ed1d9e22b3efc37483acba2945..d3ca7c8ccd7941bb049636f2d6d63ca1bef90199 100644
+index 5db0f59c38ebe2c927520da8c701595dc6adaa19..f7d0c3ca0052536847bdda97205d4e4cc2c6efbf 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -1167,6 +1167,17 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
@@ -67,10 +67,10 @@ index 986a811a86e831ed1d9e22b3efc37483acba2945..d3ca7c8ccd7941bb049636f2d6d63ca1
          if (biome.shouldFreeze(this, belowPos)) {
              org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockFormEvent(this, belowPos, Blocks.ICE.defaultBlockState(), Block.UPDATE_ALL, null); // CraftBukkit
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 7e931ecba9b5435fd618eb9f4fcf1d2d9ff4f7c0..365b1ae19ba790c9b37227a73726a69faeb0bae0 100644
+index 1c3ea282884e4f97744dda654f208544832163c6..b222a25a91eaaba40ac462ce73311bcae6ad91d7 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -549,6 +549,15 @@ public abstract class Entity
+@@ -550,6 +550,15 @@ public abstract class Entity
              collectIndirectPassengers(into, ((Entity)(Object)passenger).passengers);
          }
      }
@@ -86,7 +86,7 @@ index 7e931ecba9b5435fd618eb9f4fcf1d2d9ff4f7c0..365b1ae19ba790c9b37227a73726a69f
      // Paper end - optimise entity tracker
      // Folia start - region ticking
      public void updateTicks(long fromTickOffset, long fromRedstoneTimeOffset) {
-@@ -908,9 +917,14 @@ public abstract class Entity
+@@ -909,9 +918,14 @@ public abstract class Entity
          }
  
          //if (this instanceof ServerPlayer) this.handlePortal(); // CraftBukkit - Moved up to postTick // Folia - region threading - ONLY allow in postTick()
@@ -102,7 +102,7 @@ index 7e931ecba9b5435fd618eb9f4fcf1d2d9ff4f7c0..365b1ae19ba790c9b37227a73726a69f
  
          this.wasInPowderSnow = this.isInPowderSnow;
          this.isInPowderSnow = false;
-@@ -5619,18 +5633,44 @@ public abstract class Entity
+@@ -5621,18 +5635,44 @@ public abstract class Entity
  
      private Stream<Entity> getIndirectPassengersStream() {
          if (this.passengers.isEmpty()) { return Stream.of(); } // Paper - Optimize indirect passenger iteration

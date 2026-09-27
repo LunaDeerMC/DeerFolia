@@ -11,6 +11,9 @@ build/
 /paper-api
 /folia-server
 /folia-api
+/folia-checkstyle
+/paper-checkstyle
+/.checkstyle
 
 ### IntelliJ IDEA ###
 /.idea
