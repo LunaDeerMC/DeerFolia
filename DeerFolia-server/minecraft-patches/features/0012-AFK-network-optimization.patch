@@ -4,6 +4,78 @@ Date: Fri, 8 May 2026 15:58:58 +0800
 Subject: [PATCH] AFK network optimization
 
 
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+index 8dc428c5508ef6ebea772638db1a607fc914c7eb..64bf60ba3297f660fec71b036e4c29d630db4dc1 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+@@ -419,6 +419,67 @@ public final class RegionizedPlayerChunkLoader {
+             this.player = player;
+         }
+ 
++        public long[] deerFolia$snapshotSentChunks() { // DeerFolia - AFK network optimization
++            TickThread.ensureTickThread("Cannot snapshot player chunks async");
++            return this.sentChunks.toLongArray();
++        }
++
++        public void deerFolia$resyncClientChunks(final long[] previousClientChunks, final boolean resendCurrent) { // DeerFolia - AFK network optimization
++            TickThread.ensureTickThread("Cannot resync player chunks async");
++
++            final LongOpenHashSet previous = new LongOpenHashSet(previousClientChunks);
++            for (final long chunkKey : previous) {
++                if (!this.sentChunks.contains(chunkKey)) {
++                    this.player.connection.send(new ClientboundForgetLevelChunkPacket(new ChunkPos(
++                        CoordinateUtils.getChunkX(chunkKey), CoordinateUtils.getChunkZ(chunkKey)
++                    )));
++                }
++            }
++
++            final LongArrayList chunksToSend = new LongArrayList();
++            for (final long chunkKey : this.sentChunks) {
++                if (resendCurrent || !previous.contains(chunkKey)) {
++                    chunksToSend.add(chunkKey);
++                }
++            }
++            this.deerFolia$resendClientChunks(chunksToSend.toLongArray());
++        }
++
++        public void deerFolia$resendClientChunks(final long[] chunkKeys) { // DeerFolia - AFK network optimization
++            TickThread.ensureTickThread("Cannot resend player chunks async");
++            if (chunkKeys.length == 0) {
++                return;
++            }
++
++            final LongOpenHashSet uniqueChunkKeys = new LongOpenHashSet(chunkKeys);
++            final LongArrayList loadedChunkKeys = new LongArrayList();
++            for (final long chunkKey : uniqueChunkKeys) {
++                if (!this.sentChunks.contains(chunkKey)) {
++                    continue;
++                }
++                final int chunkX = CoordinateUtils.getChunkX(chunkKey);
++                final int chunkZ = CoordinateUtils.getChunkZ(chunkKey);
++                final LevelChunk chunk = ((ChunkSystemLevel)this.world).moonrise$getFullChunkIfLoaded(chunkX, chunkZ);
++                if (chunk != null) {
++                    loadedChunkKeys.add(chunkKey);
++                }
++            }
++            if (loadedChunkKeys.isEmpty()) {
++                return;
++            }
++
++            this.player.connection.send(net.minecraft.network.protocol.game.ClientboundChunkBatchStartPacket.INSTANCE);
++            for (final long chunkKey : loadedChunkKeys) {
++                final int chunkX = CoordinateUtils.getChunkX(chunkKey);
++                final int chunkZ = CoordinateUtils.getChunkZ(chunkKey);
++                final LevelChunk chunk = ((ChunkSystemLevel)this.world).moonrise$getFullChunkIfLoaded(chunkX, chunkZ);
++                if (chunk != null) {
++                    PlayerChunkSender.deerFolia$resendChunkPacketOnly(this.player.connection, this.world, chunk);
++                }
++            }
++            this.player.connection.send(new net.minecraft.network.protocol.game.ClientboundChunkBatchFinishedPacket(loadedChunkKeys.size()));
++        }
++
+         private void flushDelayedTicketOps() {
+             if (this.delayedTicketOps.isEmpty()) {
+                 return;
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
 index 3eb3717c0d0cc74eaecd059289bc6041386cdb77..7328f6879e92cdeaa03562c34139c580f38fa2ee 100644
 --- a/net/minecraft/commands/Commands.java
@@ -17,55 +89,24 @@ index 3eb3717c0d0cc74eaecd059289bc6041386cdb77..7328f6879e92cdeaa03562c34139c580
          RideCommand.register(this.dispatcher); // Folia - region threading - TODO later
          RotateCommand.register(this.dispatcher); // Folia - region threading - TODO later
 diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
-index c3922310ef1fce26eca60793b75bcb480683778a..ff3d0789329994cac171dba6f5c7cd9c46ac2d63 100644
+index c3922310ef1fce26eca60793b75bcb480683778a..6193e9d0e7db2250d932ae499a997da5d6b1a3a7 100644
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
-@@ -75,6 +75,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-     // Spigot end
-     private volatile @Nullable PacketListener disconnectListener;
-     private volatile @Nullable PacketListener packetListener;
-+    private volatile ProtocolInfo<?> deerFoliaOutboundProtocol = INITIAL_PROTOCOL; // DeerFolia - track outbound protocol for packet size estimation
-     private @Nullable DisconnectionDetails disconnectionDetails;
-     private final java.util.concurrent.atomic.AtomicBoolean disconnectionHandled = new java.util.concurrent.atomic.AtomicBoolean(false); // Folia - region threading - may be called concurrently during configuration stage
-     private int receivedPackets;
-@@ -85,6 +86,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-     private boolean handlingFault;
-     private volatile @Nullable DisconnectionDetails delayedDisconnect;
-     private @Nullable BandwidthDebugMonitor bandwidthDebugMonitor;
-+    private volatile int deerFoliaCompressionThreshold = -1; // DeerFolia - track compression threshold for packet size estimation
-     private @Nullable UUID intendedProfileId;
-     public String hostname = ""; // CraftBukkit - add field
-     public boolean handleConnectionDisconnectOnNextTick = false; // Paper - Force kill connection ticking
-@@ -102,6 +104,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -102,6 +102,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          }
          return null;
      }
 +
-+    public final ProtocolInfo<?> getDeerFoliaOutboundProtocol() {
-+        return this.deerFoliaOutboundProtocol;
-+    }
-+
-+    public final int getDeerFoliaCompressionThreshold() {
-+        return this.deerFoliaCompressionThreshold;
-+    }
      // Paper end - add utility methods
      // Paper start - packet limiter
      protected final Object PACKET_LIMIT_LOCK = new Object();
-@@ -372,6 +382,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-             throw new IllegalStateException("Invalid outbound protocol: " + protocol.id());
-         }
- 
-+        this.deerFoliaOutboundProtocol = protocol; // DeerFolia - track outbound protocol for packet size estimation
-         UnconfiguredPipelineHandler.OutboundConfigurationTask configMessage = UnconfiguredPipelineHandler.setupOutboundProtocol(protocol);
-         BundlerInfo bundlerInfo = protocol.bundlerInfo();
-         if (bundlerInfo != null) {
-@@ -439,6 +450,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -439,6 +440,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              return;
          }
  
 +        // DeerFolia start - suppress non-essential AFK packets
 +        final net.minecraft.server.level.ServerPlayer deerFoliaPlayer = this.getPlayer();
-+        if (deerFoliaPlayer != null && cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.shouldSuppress(deerFoliaPlayer, packet, this)) {
++        if (deerFoliaPlayer != null && cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.shouldSuppress(deerFoliaPlayer, packet)) {
 +            packet.onPacketDispatchFinish(deerFoliaPlayer, null);
 +            return;
 +        }
@@ -74,39 +115,199 @@ index c3922310ef1fce26eca60793b75bcb480683778a..ff3d0789329994cac171dba6f5c7cd9c
          packet.onPacketDispatch(this.getPlayer());
          if (false && connected && (InnerUtil.canSendImmediate(this, packet) // Folia - region threading - connection fixes
              || (io.papermc.paper.util.MCUtil.isMainThread() && packet.isReady() && this.pendingActions.isEmpty()
-@@ -909,6 +928,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+diff --git a/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java b/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java
+index 78a287e2f5101824501f1ee19e1ec448fd10dca7..7d9f1d123c4c369de6b3a8a0d65635998737c04a 100644
+--- a/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java
+@@ -44,6 +44,10 @@ public class ClientboundEntityEventPacket implements Packet<ClientGamePacketList
+         return level.getEntity(this.entityId);
+     }
  
-     public void setupCompression(final int threshold, final boolean validateDecompressed) {
-         if (threshold >= 0) {
-+            this.deerFoliaCompressionThreshold = threshold; // DeerFolia - track compression threshold for packet size estimation
-             com.velocitypowered.natives.compression.VelocityCompressor compressor = com.velocitypowered.natives.util.Natives.compress.get().create(io.papermc.paper.configuration.GlobalConfiguration.get().misc.compressionLevel.or(-1)); // Paper - Use Velocity cipher
-             if (this.channel.pipeline().get(HandlerNames.DECOMPRESS) instanceof CompressionDecoder compressionDecoder) {
-                 compressionDecoder.setThreshold(compressor, threshold, validateDecompressed); // Paper - Use Velocity cipher
-@@ -923,6 +943,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
++    public int deerFolia$getEntityId() { // DeerFolia - AFK network optimization
++        return this.entityId;
++    }
++
+     public byte getEventId() {
+         return this.eventId;
+     }
+diff --git a/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java b/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java
+index e01db54392a072f7ea5da9a07f45bf567ad46c51..2fa4f9b12e3c8c90dd5d22122a042e70c6e47d7d 100644
+--- a/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java
+@@ -59,6 +59,10 @@ public abstract class ClientboundMoveEntityPacket implements Packet<ClientGamePa
+         return level.getEntity(this.entityId);
+     }
+ 
++    public int deerFolia$getEntityId() { // DeerFolia - AFK network optimization: classify self packets without world access
++        return this.entityId;
++    }
++
+     public short getXa() {
+         return this.xa;
+     }
+diff --git a/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java b/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java
+index f324a42371a143bcfe922d980786ee7365bd575a..9be85e554c94bd7ccd4217cc0a213128097c91e4 100644
+--- a/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java
+@@ -45,6 +45,10 @@ public class ClientboundRotateHeadPacket implements Packet<ClientGamePacketListe
+         return level.getEntity(this.entityId);
+     }
+ 
++    public int deerFolia$getEntityId() { // DeerFolia - AFK network optimization
++        return this.entityId;
++    }
++
+     public float getYHeadRot() {
+         return Mth.unpackDegrees(this.yHeadRot);
+     }
+diff --git a/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+index a66d8fe21b7c162340ea2f6ac0b02de6093ad3b8..74cd48fad9764c670ff794019e640f2537d6069c 100644
+--- a/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+@@ -82,6 +82,10 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+         listener.handleChunkBlocksUpdate(this);
+     }
+ 
++    public long deerFolia$getChunkKey() { // DeerFolia - AFK network optimization
++        return net.minecraft.world.level.ChunkPos.pack(this.sectionPos.x(), this.sectionPos.z());
++    }
++
+     public void runUpdates(final BiConsumer<BlockPos, BlockState> updateFunction) {
+         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+ 
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index e9307ef10502856378d7831fb7800dd77230130c..524b2932a2705464d094989069eef1f31dca224e 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -1322,6 +1322,22 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+             return this.entity.getId();
+         }
+ 
++        public int deerFolia$getEntityId() { // DeerFolia - AFK network optimization
++            return this.entity.getId();
++        }
++
++        public void deerFolia$resyncPlayer(final ServerPlayer player) { // DeerFolia - AFK network optimization
++            this.entity.getBukkitEntity().taskScheduler.scheduleOrExecute(ignored -> {
++                if (this.entity.isRemoved() || player.hasDisconnected() || !this.seenBy.contains(player.connection)) {
++                    return;
++                }
++                cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.withSuppressionBypass(() -> {
++                    this.serverEntity.removePairing(player);
++                    this.serverEntity.addPairing(player);
++                });
++            });
++        }
++
+         @Override
+         public void sendToTrackingPlayers(final Packet<? super ClientGamePacketListener> packet) {
+             for (ServerPlayerConnection connection : this.seenBy) {
+@@ -1348,13 +1364,16 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+ 
+         public void broadcastRemoved() {
+             for (ServerPlayerConnection connection : this.seenBy) {
+-                this.serverEntity.removePairing(connection.getPlayer());
++                final ServerPlayer player = connection.getPlayer();
++                cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.onEntityTrackingStop(player, this); // DeerFolia - AFK network optimization
++                this.serverEntity.removePairing(player);
              }
-             this.channel.pipeline().fireUserEventTriggered(io.papermc.paper.network.ConnectionEvent.COMPRESSION_THRESHOLD_SET); // Paper - Add Channel initialization listeners
-         } else {
-+            this.deerFoliaCompressionThreshold = -1; // DeerFolia - track compression threshold for packet size estimation
-             if (this.channel.pipeline().get(HandlerNames.DECOMPRESS) instanceof CompressionDecoder) {
-                 this.channel.pipeline().remove(HandlerNames.DECOMPRESS);
-             }
+         }
+ 
+         public void removePlayer(final ServerPlayer player) {
+             org.spigotmc.AsyncCatcher.catchOp("player tracker clear"); // Spigot
+             if (this.seenBy.remove(player.connection)) {
++                cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.onEntityTrackingStop(player, this); // DeerFolia - AFK network optimization
+                 this.serverEntity.removePairing(player);
+                 if (this.seenBy.isEmpty()) {
+                     ChunkMap.this.level.debugSynchronizers().dropEntity(this.entity);
+@@ -1402,6 +1421,7 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+                         // Paper start - entity tracking events
+                         if (io.papermc.paper.event.player.PlayerTrackEntityEvent.getHandlerList().getRegisteredListeners().length == 0 || new io.papermc.paper.event.player.PlayerTrackEntityEvent(player.getBukkitEntity(), this.entity.getBukkitEntity()).callEvent()) {
+                         this.serverEntity.addPairing(player);
++                        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.onEntityTrackingStart(player, this); // DeerFolia - AFK network optimization
+                         if (this.seenBy.size() == 1) {
+                             ChunkMap.this.level.debugSynchronizers().registerEntity(this.entity);
+                         }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 16f49ae6736c475207f31392307e280ec06edbc3..0e7375f7126318a25dd199919688e4fb0ab89d96 100644
+index 16f49ae6736c475207f31392307e280ec06edbc3..fe61d25eb53a0df8c40d261e51b115e7c706f963 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -2996,6 +2996,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -877,6 +877,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+ 
+     @Override
+     public void tick() {
++        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.tickPlayer(this); // DeerFolia - AFK network optimization
+         // CraftBukkit start
+         if (this.joining) {
+             this.joining = false;
+@@ -2996,6 +2997,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
  
      public void resetLastActionTime() {
          this.lastActionTime = Util.getMillis();
 +        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.handleBaseActivity(this); // DeerFolia - AFK network optimization
++    }
++
++    public void deerFolia$resetLastActionTimeWithoutAfkActivity() { // DeerFolia - AFK network optimization
++        this.lastActionTime = Util.getMillis();
      }
  
      public ServerStatsCounter getStats() {
+diff --git a/net/minecraft/server/network/PlayerChunkSender.java b/net/minecraft/server/network/PlayerChunkSender.java
+index 196c01fe5f200ed57e6f23e0939cac616305571a..319ec2e732fdd24dc4496f1ad1f4aa302c5b4333 100644
+--- a/net/minecraft/server/network/PlayerChunkSender.java
++++ b/net/minecraft/server/network/PlayerChunkSender.java
+@@ -79,10 +79,7 @@ public class PlayerChunkSender {
+     }
+ 
+     public static void sendChunk(final ServerGamePacketListenerImpl connection, final ServerLevel level, final LevelChunk chunk) { // Paper - rewrite chunk system - public
+-        // Paper start - Anti-Xray
+-        final boolean shouldModify = level.chunkPacketBlockController.shouldModify(connection.player, chunk);
+-        connection.send(new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null, shouldModify));
+-        // Paper end - Anti-Xray
++        deerFolia$resendChunkPacketOnly(connection, level, chunk); // DeerFolia - AFK network optimization
+         // Paper start - PlayerChunkLoadEvent
+         if (io.papermc.paper.event.packet.PlayerChunkLoadEvent.getHandlerList().getRegisteredListeners().length > 0) {
+             new io.papermc.paper.event.packet.PlayerChunkLoadEvent(new org.bukkit.craftbukkit.CraftChunk(chunk), connection.getPlayer().getBukkitEntity()).callEvent();
+@@ -96,6 +93,12 @@ public class PlayerChunkSender {
+         level.debugSynchronizers().startTrackingChunk(connection.player, chunk.getPos());
+     }
+ 
++    public static void deerFolia$resendChunkPacketOnly(final ServerGamePacketListenerImpl connection, final ServerLevel level, final LevelChunk chunk) { // DeerFolia - AFK network optimization
++        // Preserve Anti-Xray packet transformation, but deliberately avoid chunk watch/load lifecycle side effects.
++        final boolean shouldModify = level.chunkPacketBlockController.shouldModify(connection.player, chunk);
++        connection.send(new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null, shouldModify));
++    }
++
+     private List<LevelChunk> collectChunksToSend(final ChunkMap chunkMap, final ChunkPos playerPos) {
+         int maxBatchSize = Mth.floor(this.batchQuota);
+         List<LevelChunk> chunks;
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a1304e959 100644
+index c86b1fd5e200c478d178be32791b6e8c960d47e2..801d64232f5b2febf119795f83f7d3ab5f41ef9d 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -571,6 +571,14 @@ public class ServerGamePacketListenerImpl
+@@ -521,7 +521,8 @@ public class ServerGamePacketListenerImpl
+     public void handlePlayerInput(final ServerboundPlayerInputPacket packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.level());
+         // CraftBukkit start
+-        if (!packet.input().equals(this.player.getLastClientInput())) {
++        final boolean deerFoliaInputChanged = !packet.input().equals(this.player.getLastClientInput()); // DeerFolia - AFK network optimization
++        if (deerFoliaInputChanged) {
+             PlayerInputEvent event = new PlayerInputEvent(this.player.getBukkitEntity(), new org.bukkit.craftbukkit.CraftInput(packet.input()));
+             this.cserver.getPluginManager().callEvent(event);
+         }
+@@ -542,7 +543,10 @@ public class ServerGamePacketListenerImpl
+         // Paper end - PlayerToggleSneakEvent
+         this.player.setLastClientInput(packet.input());
+         if (this.hasClientLoaded()) {
+-            this.player.resetLastActionTime();
++            if (deerFoliaInputChanged) {
++                cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.handleBaseActivity(this.player); // DeerFolia - AFK network optimization
++            }
++            this.player.deerFolia$resetLastActionTimeWithoutAfkActivity(); // DeerFolia - periodic input packets are not AFK activity
+             // this.player.setShiftKeyDown(packet.input().shift()); // Paper - move up and only set if event is not cancelled.
+         }
+         // Paper start - Add option to make parrots stay
+@@ -571,6 +575,14 @@ public class ServerGamePacketListenerImpl
          if (containsInvalidValues(packet.position().x(), packet.position().y(), packet.position().z(), packet.yRot(), packet.xRot())) {
              this.disconnect(Component.translatable("multiplayer.disconnect.invalid_vehicle_movement"), org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_VEHICLE_MOVEMENT); // Paper - kick event cause
          } else if (!this.updateAwaitingTeleport() && this.hasClientLoaded()) {
@@ -121,7 +322,7 @@ index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a
              Entity vehicle = this.player.getRootVehicle();
              // Paper start - Don't allow vehicle movement from players while teleporting
              if (this.awaitingPositionFromClient != null || this.player.isImmobile() || vehicle.isRemoved()) {
-@@ -1520,6 +1528,16 @@ public class ServerGamePacketListenerImpl
+@@ -1520,6 +1532,16 @@ public class ServerGamePacketListenerImpl
          if (containsInvalidValues(packet.getX(0.0), packet.getY(0.0), packet.getZ(0.0), packet.getYRot(0.0F), packet.getXRot(0.0F))) {
              this.disconnect(Component.translatable("multiplayer.disconnect.invalid_player_movement"), org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PLAYER_MOVEMENT); // Paper - kick event cause
          } else {
@@ -138,7 +339,7 @@ index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a
              ServerLevel level = this.player.level();
              if (!this.player.wonGame && !this.player.isImmobile()) { // CraftBukkit
                  if (this.tickCount == 0) {
-@@ -2321,6 +2339,7 @@ public class ServerGamePacketListenerImpl
+@@ -2321,6 +2343,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void onDisconnect(final DisconnectionDetails details) {
@@ -146,7 +347,7 @@ index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a
          LOGGER.info("{} lost connection: {}", this.player.getPlainTextName(), details.reason().getString());
          // Paper start - Fix kick event leave message not being sent
          final net.kyori.adventure.text.Component quitMessage = details.quitMessage().map(io.papermc.paper.adventure.PaperAdventure::asAdventure).orElse(null);
-@@ -2403,6 +2422,7 @@ public class ServerGamePacketListenerImpl
+@@ -2403,6 +2426,7 @@ public class ServerGamePacketListenerImpl
              return;
          }
          // CraftBukkit end
@@ -154,7 +355,7 @@ index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a
          Optional<LastSeenMessages> unpackedLastSeen = this.unpackAndApplyLastSeen(packet.lastSeenMessages());
          if (!unpackedLastSeen.isEmpty()) {
              this.tryHandleChat(packet.message(), false, () -> {
-@@ -2427,6 +2447,7 @@ public class ServerGamePacketListenerImpl
+@@ -2427,6 +2451,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void handleChatCommand(final ServerboundChatCommandPacket packet) {
@@ -162,7 +363,7 @@ index c86b1fd5e200c478d178be32791b6e8c960d47e2..99f88777b2f5c484f5df000c626fa39a
          this.tryHandleChat(packet.command(), true, () -> {
              // CraftBukkit start - SPIGOT-7346: Prevent disconnected players from executing commands
              if (this.player.hasDisconnected()) {
-@@ -2466,6 +2487,7 @@ public class ServerGamePacketListenerImpl
+@@ -2466,6 +2491,7 @@ public class ServerGamePacketListenerImpl
  
      @Override
      public void handleSignedChatCommand(final ServerboundChatCommandSignedPacket packet) {

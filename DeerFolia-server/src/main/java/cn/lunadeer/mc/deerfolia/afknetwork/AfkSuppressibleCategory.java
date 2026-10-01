@@ -20,6 +20,10 @@ public enum AfkSuppressibleCategory {
         return this.configKey;
     }
 
+    public int bit() {
+        return 1 << this.ordinal();
+    }
+
     public static Optional<AfkSuppressibleCategory> fromConfigKey(final String value) {
         if (value == null) {
             return Optional.empty();

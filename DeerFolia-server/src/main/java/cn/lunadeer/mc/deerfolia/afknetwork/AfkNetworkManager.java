@@ -1,33 +1,29 @@
 package cn.lunadeer.mc.deerfolia.afknetwork;
 
 import cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration;
-import com.mojang.logging.LogUtils;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.LongAdder;
 import net.minecraft.ChatFormatting;
-import net.minecraft.network.CompressionEncoder;
-import net.minecraft.network.Connection;
-import net.minecraft.network.PacketEncoder;
-import net.minecraft.network.ProtocolInfo;
-import net.minecraft.network.Varint21LengthFieldPrepender;
+import net.minecraft.network.protocol.BundlePacket;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.network.protocol.BundlePacket;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ClientboundBlockDestructionPacket;
@@ -79,19 +75,18 @@ import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
 import net.minecraft.server.level.ChunkMap;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.PlayerChunkSender;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.util.Util;
+import net.minecraft.world.level.ChunkPos;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
 public final class AfkNetworkManager {
-    private static final Logger LOGGER = LogUtils.getLogger();
     private static final ConcurrentMap<UUID, RuntimeState> RUNTIME_STATES = new ConcurrentHashMap<>();
     private static final ConcurrentMap<UUID, PlayerStats> PLAYER_STATS = new ConcurrentHashMap<>();
     private static final EnumMap<AfkSuppressibleCategory, CategoryStats> CATEGORY_STATS = new EnumMap<>(AfkSuppressibleCategory.class);
+    private static final TrafficCounter GLOBAL_COUNTER = new TrafficCounter();
+    private static final ThreadLocal<Integer> SUPPRESSION_BYPASS_DEPTH = ThreadLocal.withInitial(() -> 0);
+    private static volatile int suppressionWhitelistMask;
 
     static {
         for (final AfkSuppressibleCategory category : AfkSuppressibleCategory.values()) {
@@ -102,83 +97,134 @@ public final class AfkNetworkManager {
     private AfkNetworkManager() {
     }
 
+    public static void refreshConfiguration() {
+        int mask = 0;
+        for (final String entry : DeerFoliaConfiguration.afkNetworkOptimization.suppressionWhitelistCategories) {
+            final var category = AfkSuppressibleCategory.fromConfigKey(entry);
+            if (category.isPresent()) {
+                mask |= category.get().bit();
+            }
+        }
+        suppressionWhitelistMask = mask;
+    }
+
     public static void handleBaseActivity(final ServerPlayer player) {
-        markActivity(player, runtimeState(player));
+        markActivityFromAnyThread(player);
     }
 
     public static void handleLookOrMoveActivity(final ServerPlayer player, final boolean moved, final boolean looked) {
         if (!moved && !looked) {
             return;
         }
-
         if (moved || (looked && DeerFoliaConfiguration.afkNetworkOptimization.countLookChangesAsActivity)) {
-            markActivity(player, runtimeState(player));
+            markActivityFromAnyThread(player);
+        }
+    }
+
+    public static void tickPlayer(final ServerPlayer player) {
+        final RuntimeState state = runtimeStateForOwner(player);
+        final DeerFoliaConfiguration.AfkNetworkOptimization config = DeerFoliaConfiguration.afkNetworkOptimization;
+        final long now = Util.getMillis();
+
+        if (state.activityPending.getAndSet(false) && state.afk) {
+            exitAfk(player, state, now);
+        }
+
+        if (!config.enabled || player.hasDisconnected()) {
+            if (state.afk) {
+                exitAfk(player, state, now);
+            }
+            return;
+        }
+
+        if (!state.afk && isAfk(player, state, now, config.afkThresholdTicks)) {
+            enterAfk(player, state, now);
         }
     }
 
     public static void onLogin(final ServerPlayer player) {
-        final RuntimeState state = new RuntimeState();
-        state.lastActivityMillis = System.currentTimeMillis();
-        RUNTIME_STATES.put(player.getUUID(), state);
+        RUNTIME_STATES.put(player.getUUID(), new RuntimeState(player));
     }
 
     public static void onDisconnect(final ServerPlayer player) {
-        RUNTIME_STATES.remove(player.getUUID());
+        final RuntimeState state = RUNTIME_STATES.get(player.getUUID());
+        if (state != null && state.owner == player) {
+            RUNTIME_STATES.remove(player.getUUID(), state);
+        }
     }
 
-    public static boolean shouldSuppress(final ServerPlayer player, final Packet<?> packet, final Connection connection) {
-        final DeerFoliaConfiguration.AfkNetworkOptimization config = DeerFoliaConfiguration.afkNetworkOptimization;
-        if (!config.enabled || player.hasDisconnected()) {
-            return false;
-        }
-
-        final RuntimeState state = runtimeState(player);
-        if (state.bypassDepth > 0) {
-            return false;
-        }
-
-        final AfkSuppressibleCategory category = classify(packet, player);
-        if (category == null || whitelistedCategories().contains(category)) {
-            return false;
-        }
-
-        final long now = System.currentTimeMillis();
-        if (!isAfk(player, state, now, config.afkThresholdTicks)) {
-            state.afk = false;
-            state.afkSessionCounter.reset(now);
-            if (!state.awaitingPostAfkResync) {
-                state.afkEntryTrackedEntityIds.clear();
+    public static void onEntityTrackingStart(final ServerPlayer player, final ChunkMap.TrackedEntity tracker) {
+        final RuntimeState state = RUNTIME_STATES.get(player.getUUID());
+        if (state != null && state.owner == player) {
+            state.trackedEntities.add(tracker);
+            state.trackedEntitiesById.put(tracker.deerFolia$getEntityId(), tracker);
+            if (!state.afk || (suppressionWhitelistMask & AfkSuppressibleCategory.ENTITY_STREAM.bit()) != 0) {
+                state.clientTrackedEntities.add(tracker);
             }
-            resetSuppressedSinceRefresh(state);
+        }
+    }
+
+    public static void onEntityTrackingStop(final ServerPlayer player, final ChunkMap.TrackedEntity tracker) {
+        final RuntimeState state = RUNTIME_STATES.get(player.getUUID());
+        if (state != null && state.owner == player) {
+            state.trackedEntities.remove(tracker);
+            state.trackedEntitiesById.remove(tracker.deerFolia$getEntityId(), tracker);
+            if (!state.afk || (suppressionWhitelistMask & AfkSuppressibleCategory.ENTITY_STREAM.bit()) != 0) {
+                state.clientTrackedEntities.remove(tracker);
+            }
+        }
+    }
+
+    public static void withSuppressionBypass(final Runnable action) {
+        final int previous = SUPPRESSION_BYPASS_DEPTH.get();
+        SUPPRESSION_BYPASS_DEPTH.set(previous + 1);
+        try {
+            action.run();
+        } finally {
+            if (previous == 0) {
+                SUPPRESSION_BYPASS_DEPTH.remove();
+            } else {
+                SUPPRESSION_BYPASS_DEPTH.set(previous);
+            }
+        }
+    }
+
+    public static boolean shouldSuppress(final ServerPlayer player, final Packet<?> packet) {
+        final DeerFoliaConfiguration.AfkNetworkOptimization config = DeerFoliaConfiguration.afkNetworkOptimization;
+        if (!config.enabled || player.hasDisconnected() || SUPPRESSION_BYPASS_DEPTH.get() > 0) {
             return false;
         }
-        if (!state.afk) {
-            enterAfk(player, state, now);
+
+        final RuntimeState state = RUNTIME_STATES.get(player.getUUID());
+        if (state == null || state.owner != player || !state.afk) {
+            return false;
         }
 
-        final int estimatedBytes = Math.max(estimatePacketBytes(connection, packet), 0);
-        final long refreshThreshold = config.maxSuppressedBytesBeforeCategoryResync;
-        if (refreshThreshold >= 0L && state.suppressedSinceRefresh.get(category) + estimatedBytes >= refreshThreshold) {
-            state.suppressedSinceRefresh.put(category, 0L);
-            refreshCategory(player, state, category);
-            if (category == AfkSuppressibleCategory.WORLD_EFFECTS || category == AfkSuppressibleCategory.UI_STREAM) {
+        final AfkSuppressibleCategory category = classify(packet, player.getId());
+        if (category == null || category == AfkSuppressibleCategory.UI_STREAM || (suppressionWhitelistMask & category.bit()) != 0) {
+            return false;
+        }
+
+        final int estimatedBytes = estimatePacketBytes(packet, category);
+        markSuppressedDirtyState(state, packet, category);
+        final long threshold = config.maxSuppressedBytesBeforeCategoryResync;
+        if (threshold >= 0L && crossedRefreshThreshold(state.suppressedSinceRefresh, category.ordinal(), estimatedBytes, threshold)) {
+            if (category == AfkSuppressibleCategory.WORLD_EFFECTS) {
                 return false;
             }
-            recordAfkSessionSaved(state, estimatedBytes, now);
-            recordSaved(player, category, estimatedBytes, now);
-            return true;
+            scheduleCategoryRefresh(player, state, category);
         }
 
-        state.suppressedSinceRefresh.put(category, state.suppressedSinceRefresh.get(category) + estimatedBytes);
-        recordAfkSessionSaved(state, estimatedBytes, now);
-        recordSaved(player, category, estimatedBytes, now);
+        state.suppressedCategoryMask.getAndUpdate(mask -> mask | category.bit());
+        recordAfkSessionSaved(state, estimatedBytes, Util.getMillis());
+        recordSaved(player, category, estimatedBytes, Util.getMillis());
         return true;
     }
 
     public static List<Component> buildSummaryLines() {
         final List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal("[AFKNet] total saved: " + formatBytes(totalSavedBytes())));
-        lines.add(Component.literal("[AFKNet] peak saved bandwidth: " + formatRate(peakSavedBytesPerSecond())));
+        lines.add(Component.literal("[AFKNet] estimated total saved: " + formatBytes(GLOBAL_COUNTER.totalBytes())));
+        lines.add(Component.literal("[AFKNet] estimated peak saved bandwidth: " + formatRate(GLOBAL_COUNTER.peakBytesPerSecond())));
         lines.add(Component.literal("[AFKNet] categories:"));
         for (final AfkSuppressibleCategory category : AfkSuppressibleCategory.values()) {
             final CategoryStats stats = CATEGORY_STATS.get(category);
@@ -206,8 +252,8 @@ public final class AfkNetworkManager {
 
         final List<Component> lines = new ArrayList<>();
         lines.add(Component.literal("[AFKNet] player: " + stats.lastKnownName));
-        lines.add(Component.literal("[AFKNet] total saved: " + formatBytes(stats.totalBytes())));
-        lines.add(Component.literal("[AFKNet] peak saved bandwidth: " + formatRate(stats.peakBytesPerSecond())));
+        lines.add(Component.literal("[AFKNet] estimated total saved: " + formatBytes(stats.totalBytes())));
+        lines.add(Component.literal("[AFKNet] estimated peak saved bandwidth: " + formatRate(stats.peakBytesPerSecond())));
         lines.add(Component.literal("[AFKNet] categories:"));
         for (final AfkSuppressibleCategory category : AfkSuppressibleCategory.values()) {
             final TrafficCounter counter = stats.byCategory.get(category);
@@ -216,22 +262,330 @@ public final class AfkNetworkManager {
         return lines;
     }
 
-    private static EnumSet<AfkSuppressibleCategory> whitelistedCategories() {
-        final EnumSet<AfkSuppressibleCategory> categories = EnumSet.noneOf(AfkSuppressibleCategory.class);
-        for (final String entry : DeerFoliaConfiguration.afkNetworkOptimization.suppressionWhitelistCategories) {
-            AfkSuppressibleCategory.fromConfigKey(entry).ifPresent(categories::add);
-        }
-        return categories;
+    private static RuntimeState runtimeStateForOwner(final ServerPlayer player) {
+        return RUNTIME_STATES.compute(player.getUUID(), (ignored, existing) -> {
+            if (existing == null || existing.owner != player) {
+                return new RuntimeState(player);
+            }
+            return existing;
+        });
     }
 
     private static boolean isAfk(final ServerPlayer player, final RuntimeState state, final long now, final int thresholdTicks) {
         final long thresholdMillis = thresholdTicks * 50L;
-        final long lastActivity = Math.max(player.getLastActionTime(), state.lastActivityMillis);
-        return now - lastActivity >= thresholdMillis;
+        return now - state.lastActivityMillis.get() >= thresholdMillis;
     }
 
-    private static RuntimeState runtimeState(final ServerPlayer player) {
-        return RUNTIME_STATES.computeIfAbsent(player.getUUID(), ignored -> new RuntimeState());
+    private static void markActivityFromAnyThread(final ServerPlayer player) {
+        final RuntimeState state = RUNTIME_STATES.get(player.getUUID());
+        if (state == null || state.owner != player) {
+            return;
+        }
+
+        final long now = Util.getMillis();
+        long previous = state.lastActivityMillis.get();
+        while (now > previous && !state.lastActivityMillis.compareAndSet(previous, now)) {
+            previous = state.lastActivityMillis.get();
+        }
+        state.activityPending.set(true);
+    }
+
+    private static void enterAfk(final ServerPlayer player, final RuntimeState state, final long now) {
+        state.afk = true;
+        state.afkGeneration++;
+        state.afkSessionCounter.reset(now);
+        state.suppressedCategoryMask.set(0);
+        state.dirtyBlockChunks.clear();
+        state.dirtyEntityIds.clear();
+        resetSuppressedSinceRefresh(state);
+
+        state.clientTrackedEntities.clear();
+        state.clientTrackedEntities.addAll(state.trackedEntities);
+        state.clientChunkSnapshot = snapshotSentChunks(player);
+
+        sendConfiguredMessage(player, DeerFoliaConfiguration.afkNetworkOptimization.afkEnterMessage, 0L, 0L);
+    }
+
+    private static void exitAfk(final ServerPlayer player, final RuntimeState state, final long now) {
+        final long sessionSavedTraffic = state.afkSessionCounter.totalBytes();
+        final long sessionSavedBandwidth = state.afkSessionCounter.peakBytesPerSecond();
+        final int suppressedCategoryMask = state.suppressedCategoryMask.getAndSet(0);
+
+        state.afk = false;
+        state.afkGeneration++;
+        resetSuppressedSinceRefresh(state);
+        state.afkSessionCounter.reset(now);
+
+        sendConfiguredMessage(
+            player,
+            DeerFoliaConfiguration.afkNetworkOptimization.afkExitMessage,
+            sessionSavedTraffic,
+            sessionSavedBandwidth
+        );
+        resyncAfterAfk(player, state, DeerFoliaConfiguration.afkNetworkOptimization.resyncOnResume, suppressedCategoryMask);
+    }
+
+    private static long[] snapshotSentChunks(final ServerPlayer player) {
+        final var loader = player.moonrise$getChunkLoader();
+        return loader == null ? new long[0] : loader.deerFolia$snapshotSentChunks();
+    }
+
+    private static void resyncAfterAfk(final ServerPlayer player, final RuntimeState state, final boolean fullResync, final int suppressedCategoryMask) {
+        if (player.hasDisconnected()) {
+            return;
+        }
+
+        final boolean blockStateDirty = (suppressedCategoryMask & AfkSuppressibleCategory.BLOCK_UPDATES.bit()) != 0;
+        final boolean entityStateDirty = (suppressedCategoryMask & AfkSuppressibleCategory.ENTITY_STREAM.bit()) != 0;
+
+        final var loader = player.moonrise$getChunkLoader();
+        if (loader != null) {
+            final long[] previous = state.clientChunkSnapshot;
+            withSuppressionBypass(() -> loader.deerFolia$resyncClientChunks(previous, fullResync));
+            state.clientChunkSnapshot = loader.deerFolia$snapshotSentChunks();
+            if (fullResync) {
+                state.dirtyBlockChunks.clear();
+            } else if (blockStateDirty) {
+                refreshDirtyBlockChunks(player, state);
+            }
+        } else {
+            state.clientChunkSnapshot = new long[0];
+        }
+
+        if (fullResync || entityStateDirty) {
+            reconcileTrackedEntities(player, state, fullResync);
+        } else {
+            state.clientTrackedEntities.clear();
+            state.clientTrackedEntities.addAll(state.trackedEntities);
+            state.dirtyEntityIds.clear();
+        }
+    }
+
+    private static void scheduleCategoryRefresh(final ServerPlayer player, final RuntimeState state, final AfkSuppressibleCategory category) {
+        final int categoryIndex = category.ordinal();
+        state.refreshRequested[categoryIndex].set(true);
+        final AtomicBoolean scheduled = state.refreshScheduled[categoryIndex];
+        if (!scheduled.compareAndSet(false, true)) {
+            return;
+        }
+        final long afkGeneration = state.afkGeneration;
+
+        schedulePlayerTask(player, () -> {
+            try {
+                while (state.afk
+                    && state.afkGeneration == afkGeneration
+                    && RUNTIME_STATES.get(player.getUUID()) == state
+                    && state.refreshRequested[categoryIndex].getAndSet(false)) {
+                    state.suppressedSinceRefresh.set(categoryIndex, 0L);
+                    switch (category) {
+                        case CHUNK_STREAM -> {
+                            final var loader = player.moonrise$getChunkLoader();
+                            if (loader != null) {
+                                final long[] previous = state.clientChunkSnapshot;
+                                withSuppressionBypass(() -> loader.deerFolia$resyncClientChunks(previous, false));
+                                state.clientChunkSnapshot = loader.deerFolia$snapshotSentChunks();
+                            }
+                        }
+                        case BLOCK_UPDATES -> refreshDirtyBlockChunks(player, state);
+                        case ENTITY_STREAM -> reconcileTrackedEntities(player, state, false);
+                        case WORLD_EFFECTS, UI_STREAM -> {
+                        }
+                    }
+                }
+            } finally {
+                scheduled.set(false);
+                if (state.afk
+                    && state.afkGeneration == afkGeneration
+                    && RUNTIME_STATES.get(player.getUUID()) == state
+                    && state.refreshRequested[categoryIndex].get()) {
+                    scheduleCategoryRefresh(player, state, category);
+                }
+            }
+        });
+    }
+
+    private static void refreshDirtyBlockChunks(final ServerPlayer player, final RuntimeState state) {
+        final var loader = player.moonrise$getChunkLoader();
+        if (loader == null || state.dirtyBlockChunks.isEmpty()) {
+            return;
+        }
+
+        final Map<Long, Long> dirtySnapshot = Map.copyOf(state.dirtyBlockChunks);
+        final long[] chunkKeys = new long[dirtySnapshot.size()];
+        int index = 0;
+        for (final long chunkKey : dirtySnapshot.keySet()) {
+            chunkKeys[index++] = chunkKey;
+        }
+
+        withSuppressionBypass(() -> loader.deerFolia$resendClientChunks(chunkKeys));
+        dirtySnapshot.forEach((chunkKey, version) -> state.dirtyBlockChunks.remove(chunkKey, version));
+    }
+
+    private static void reconcileTrackedEntities(final ServerPlayer player, final RuntimeState state, final boolean resendAllCurrent) {
+        final Set<ChunkMap.TrackedEntity> current = new HashSet<>(state.trackedEntities);
+        final Set<ChunkMap.TrackedEntity> stale = new HashSet<>(state.clientTrackedEntities);
+        stale.removeAll(current);
+        final Set<ChunkMap.TrackedEntity> toResync = new HashSet<>();
+        final Map<Integer, Long> dirtySnapshot = Map.copyOf(state.dirtyEntityIds);
+
+        if (!stale.isEmpty()) {
+            final int[] ids = stale.stream().mapToInt(ChunkMap.TrackedEntity::deerFolia$getEntityId).toArray();
+            withSuppressionBypass(() -> player.connection.send(new ClientboundRemoveEntitiesPacket(ids)));
+        }
+
+        if (resendAllCurrent) {
+            toResync.addAll(current);
+        } else {
+            final Set<ChunkMap.TrackedEntity> added = new HashSet<>(current);
+            added.removeAll(state.clientTrackedEntities);
+            toResync.addAll(added);
+            for (final int entityId : dirtySnapshot.keySet()) {
+                final ChunkMap.TrackedEntity tracker = state.trackedEntitiesById.get(entityId);
+                if (tracker != null && current.contains(tracker)) {
+                    toResync.add(tracker);
+                }
+            }
+        }
+
+        for (final ChunkMap.TrackedEntity tracker : toResync) {
+            tracker.deerFolia$resyncPlayer(player);
+        }
+
+        state.clientTrackedEntities.clear();
+        state.clientTrackedEntities.addAll(current);
+        dirtySnapshot.forEach((entityId, version) -> state.dirtyEntityIds.remove(entityId, version));
+    }
+
+    private static void markSuppressedDirtyState(final RuntimeState state, final Packet<?> packet, final AfkSuppressibleCategory category) {
+        if (packet instanceof BundlePacket<?> bundlePacket) {
+            for (final Packet<?> subPacket : bundlePacket.subPackets()) {
+                markSuppressedDirtyState(state, subPacket, category);
+            }
+            return;
+        }
+
+        switch (category) {
+            case BLOCK_UPDATES -> markDirtyBlockChunk(state, packet);
+            case ENTITY_STREAM -> markDirtyEntity(state, packet);
+            case CHUNK_STREAM, WORLD_EFFECTS, UI_STREAM -> {
+            }
+        }
+    }
+
+    private static void markDirtyBlockChunk(final RuntimeState state, final Packet<?> packet) {
+        if (packet instanceof ClientboundBlockUpdatePacket blockUpdate) {
+            markDirtyChunk(state, blockUpdate.getPos());
+        } else if (packet instanceof ClientboundSectionBlocksUpdatePacket sectionBlocksUpdate) {
+            markDirtyVersion(state.dirtyBlockChunks, sectionBlocksUpdate.deerFolia$getChunkKey());
+        } else if (packet instanceof ClientboundBlockEntityDataPacket blockEntityData) {
+            markDirtyChunk(state, blockEntityData.getPos());
+        } else if (packet instanceof ClientboundBlockDestructionPacket blockDestruction) {
+            markDirtyChunk(state, blockDestruction.getPos());
+        } else if (packet instanceof ClientboundBlockEventPacket blockEvent) {
+            markDirtyChunk(state, blockEvent.getPos());
+        }
+    }
+
+    private static void markDirtyChunk(final RuntimeState state, final net.minecraft.core.BlockPos pos) {
+        markDirtyVersion(state.dirtyBlockChunks, ChunkPos.pack(pos.getX() >> 4, pos.getZ() >> 4));
+    }
+
+    private static void markDirtyEntity(final RuntimeState state, final Packet<?> packet) {
+        if (packet instanceof ClientboundAddEntityPacket addEntity) {
+            markDirtyVersion(state.dirtyEntityIds, addEntity.getId());
+        } else if (packet instanceof ClientboundRemoveEntitiesPacket removeEntities) {
+            for (final int entityId : removeEntities.getEntityIds()) {
+                markDirtyVersion(state.dirtyEntityIds, entityId);
+            }
+        } else if (packet instanceof ClientboundMoveEntityPacket moveEntity) {
+            markDirtyVersion(state.dirtyEntityIds, moveEntity.deerFolia$getEntityId());
+        } else if (packet instanceof ClientboundTeleportEntityPacket teleportEntity) {
+            markDirtyVersion(state.dirtyEntityIds, teleportEntity.id());
+        } else if (packet instanceof ClientboundEntityPositionSyncPacket positionSync) {
+            markDirtyVersion(state.dirtyEntityIds, positionSync.id());
+        } else if (packet instanceof ClientboundRotateHeadPacket rotateHead) {
+            markDirtyVersion(state.dirtyEntityIds, rotateHead.deerFolia$getEntityId());
+        } else if (packet instanceof ClientboundSetEntityDataPacket entityData) {
+            markDirtyVersion(state.dirtyEntityIds, entityData.id());
+        } else if (packet instanceof ClientboundSetEntityMotionPacket entityMotion) {
+            markDirtyVersion(state.dirtyEntityIds, entityMotion.id());
+        } else if (packet instanceof ClientboundSetEquipmentPacket equipment) {
+            markDirtyVersion(state.dirtyEntityIds, equipment.getEntity());
+        } else if (packet instanceof ClientboundSetPassengersPacket passengers) {
+            markDirtyVersion(state.dirtyEntityIds, passengers.getVehicle());
+            for (final int passengerId : passengers.getPassengers()) {
+                markDirtyVersion(state.dirtyEntityIds, passengerId);
+            }
+        } else if (packet instanceof ClientboundSetEntityLinkPacket entityLink) {
+            markDirtyVersion(state.dirtyEntityIds, entityLink.getSourceId());
+            if (entityLink.getDestId() != 0) {
+                markDirtyVersion(state.dirtyEntityIds, entityLink.getDestId());
+            }
+        } else if (packet instanceof ClientboundUpdateAttributesPacket attributes) {
+            markDirtyVersion(state.dirtyEntityIds, attributes.getEntityId());
+        } else if (packet instanceof ClientboundProjectilePowerPacket projectilePower) {
+            markDirtyVersion(state.dirtyEntityIds, projectilePower.getId());
+        } else if (packet instanceof ClientboundMoveMinecartPacket moveMinecart) {
+            markDirtyVersion(state.dirtyEntityIds, moveMinecart.entityId());
+        } else if (packet instanceof ClientboundAnimatePacket animate) {
+            markDirtyVersion(state.dirtyEntityIds, animate.getId());
+        } else if (packet instanceof ClientboundEntityEventPacket entityEvent) {
+            markDirtyVersion(state.dirtyEntityIds, entityEvent.deerFolia$getEntityId());
+        } else if (packet instanceof ClientboundDamageEventPacket damageEvent) {
+            markDirtyVersion(state.dirtyEntityIds, damageEvent.entityId());
+        }
+    }
+
+    private static <K> void markDirtyVersion(final ConcurrentMap<K, Long> dirtyMap, final K key) {
+        dirtyMap.merge(key, 1L, (current, ignored) -> current == Long.MAX_VALUE ? Long.MIN_VALUE : current + 1L);
+    }
+
+    private static void schedulePlayerTask(final ServerPlayer player, final Runnable action) {
+        if (player.hasDisconnected()) {
+            return;
+        }
+        player.getBukkitEntity().taskScheduler.scheduleOrExecute(ignored -> {
+            if (!player.hasDisconnected()) {
+                action.run();
+            }
+        });
+    }
+
+    private static boolean crossedRefreshThreshold(
+        final AtomicLongArray counters,
+        final int index,
+        final int estimatedBytes,
+        final long threshold
+    ) {
+        while (true) {
+            final long current = counters.get(index);
+            final long nextValue = saturatingAdd(current, estimatedBytes);
+            final boolean crossed = nextValue >= threshold;
+            final long replacement = crossed ? 0L : nextValue;
+            if (counters.compareAndSet(index, current, replacement)) {
+                return crossed;
+            }
+        }
+    }
+
+    private static long saturatingAdd(final long left, final long right) {
+        if (right > 0L && left > Long.MAX_VALUE - right) {
+            return Long.MAX_VALUE;
+        }
+        return left + right;
+    }
+
+    private static void resetSuppressedSinceRefresh(final RuntimeState state) {
+        for (final AfkSuppressibleCategory category : AfkSuppressibleCategory.values()) {
+            state.suppressedSinceRefresh.set(category.ordinal(), 0L);
+            state.refreshRequested[category.ordinal()].set(false);
+        }
+    }
+
+    private static void recordAfkSessionSaved(final RuntimeState state, final int bytes, final long now) {
+        if (bytes > 0) {
+            state.afkSessionCounter.record(bytes, now);
+        }
     }
 
     private static void recordSaved(final ServerPlayer player, final AfkSuppressibleCategory category, final int bytes, final long now) {
@@ -244,79 +598,47 @@ public final class AfkNetworkManager {
         playerStats.totalCounter.record(bytes, now);
         playerStats.byCategory.get(category).record(bytes, now);
         CATEGORY_STATS.get(category).counter.record(bytes, now);
+        GLOBAL_COUNTER.record(bytes, now);
     }
 
-    private static long totalSavedBytes() {
-        long total = 0L;
-        for (final PlayerStats stats : PLAYER_STATS.values()) {
-            total += stats.totalBytes();
-        }
-        return total;
-    }
-
-    private static long peakSavedBytesPerSecond() {
-        long peak = 0L;
-        for (final PlayerStats stats : PLAYER_STATS.values()) {
-            peak = Math.max(peak, stats.peakBytesPerSecond());
-        }
-        return peak;
-    }
-
-    private static int estimatePacketBytes(final Connection connection, final Packet<?> packet) {
+    private static int estimatePacketBytes(final Packet<?> packet, final AfkSuppressibleCategory category) {
         if (packet instanceof BundlePacket<?> bundlePacket) {
-            int total = 0;
+            long total = 0L;
             for (final Packet<?> subPacket : bundlePacket.subPackets()) {
-                total += estimatePacketBytes(connection, subPacket);
+                total += estimatePacketBytes(subPacket, category);
+                if (total >= Integer.MAX_VALUE) {
+                    return Integer.MAX_VALUE;
+                }
             }
-            return total;
+            return (int)total;
         }
 
-        final ProtocolInfo<?> outboundProtocol = connection.getDeerFoliaOutboundProtocol();
-        if (outboundProtocol == null) {
-            return 0;
-        }
+        if (packet instanceof ClientboundLevelChunkWithLightPacket) return 64 * 1024;
+        if (packet instanceof ClientboundChunksBiomesPacket) return 16 * 1024;
+        if (packet instanceof ClientboundLightUpdatePacket) return 4 * 1024;
+        if (packet instanceof ClientboundSectionBlocksUpdatePacket) return 1024;
+        if (packet instanceof ClientboundBlockEntityDataPacket) return 512;
+        if (packet instanceof ClientboundSetEntityDataPacket || packet instanceof ClientboundSetEquipmentPacket) return 256;
+        if (packet instanceof ClientboundAddEntityPacket) return 128;
+        if (packet instanceof ClientboundLevelParticlesPacket) return 96;
+        if (packet instanceof ClientboundForgetLevelChunkPacket
+            || packet instanceof ClientboundChunkBatchStartPacket
+            || packet instanceof ClientboundChunkBatchFinishedPacket) return 8;
 
-        final EmbeddedChannel channel;
-        final int compressionThreshold = connection.getDeerFoliaCompressionThreshold();
-        if (compressionThreshold >= 0) {
-            channel = new EmbeddedChannel(
-                new Varint21LengthFieldPrepender(),
-                new CompressionEncoder(compressionThreshold),
-                new PacketEncoder<>((ProtocolInfo) outboundProtocol)
-            );
-        } else {
-            channel = new EmbeddedChannel(
-                new Varint21LengthFieldPrepender(),
-                new PacketEncoder<>((ProtocolInfo) outboundProtocol)
-            );
-        }
-
-        try {
-            if (!channel.writeOutbound(packet)) {
-                return 0;
-            }
-            final Object encoded = channel.readOutbound();
-            if (!(encoded instanceof ByteBuf byteBuf)) {
-                return 0;
-            }
-            try {
-                return byteBuf.readableBytes();
-            } finally {
-                byteBuf.release();
-            }
-        } catch (final Exception exception) {
-            LOGGER.debug("Failed to estimate packet size for {}", packet.getClass().getName(), exception);
-            return 0;
-        } finally {
-            channel.finishAndReleaseAll();
-        }
+        return switch (category) {
+            case CHUNK_STREAM -> 512;
+            case BLOCK_UPDATES -> 64;
+            case ENTITY_STREAM -> 48;
+            case WORLD_EFFECTS -> 48;
+            case UI_STREAM -> 128;
+        };
     }
 
-    private static @Nullable AfkSuppressibleCategory classify(final Packet<?> packet, final ServerPlayer player) {
+    private static @Nullable AfkSuppressibleCategory classify(final Packet<?> packet, final int playerId) {
         if (packet instanceof BundlePacket<?> bundlePacket) {
             AfkSuppressibleCategory category = null;
             for (final Packet<?> subPacket : bundlePacket.subPackets()) {
-                final AfkSuppressibleCategory subCategory = classify(subPacket, player);
+                final AfkSuppressibleCategory subCategory = classify(subPacket, playerId);
                 if (subCategory == null) {
                     return null;
                 }
@@ -329,7 +651,7 @@ public final class AfkNetworkManager {
             return category;
         }
 
-        if (isSelfEntityPacket(player, packet)) {
+        if (isSelfEntityPacket(playerId, packet)) {
             return null;
         }
 
@@ -401,39 +723,22 @@ public final class AfkNetworkManager {
         return null;
     }
 
-    private static void markActivity(final ServerPlayer player, final RuntimeState state) {
-        final long now = System.currentTimeMillis();
-        state.lastActivityMillis = now;
-        if (state.afk) {
-            final long sessionSavedTraffic = state.afkSessionCounter.totalBytes();
-            final long sessionSavedBandwidth = state.afkSessionCounter.peakBytesPerSecond();
-            state.afk = false;
-            state.awaitingPostAfkResync = true;
-            resetSuppressedSinceRefresh(state);
-            state.afkSessionCounter.reset(now);
-            sendConfiguredMessage(player, state, DeerFoliaConfiguration.afkNetworkOptimization.afkExitMessage, sessionSavedTraffic, sessionSavedBandwidth);
-            resyncAfterAfk(player, state, DeerFoliaConfiguration.afkNetworkOptimization.resyncOnResume);
-        }
+    private static boolean isSelfEntityPacket(final int playerId, final Packet<?> packet) {
+        return packet instanceof ClientboundSetEntityDataPacket entityData && entityData.id() == playerId
+            || packet instanceof ClientboundMoveEntityPacket moveEntity && moveEntity.deerFolia$getEntityId() == playerId
+            || packet instanceof ClientboundTeleportEntityPacket teleportEntity && teleportEntity.id() == playerId
+            || packet instanceof ClientboundEntityPositionSyncPacket entityPositionSync && entityPositionSync.id() == playerId
+            || packet instanceof ClientboundSetEntityMotionPacket entityMotion && entityMotion.id() == playerId
+            || packet instanceof ClientboundSetEquipmentPacket setEquipment && setEquipment.getEntity() == playerId
+            || packet instanceof ClientboundUpdateAttributesPacket updateAttributes && updateAttributes.getEntityId() == playerId;
     }
 
-    private static void enterAfk(final ServerPlayer player, final RuntimeState state, final long now) {
-        state.afk = true;
-        state.awaitingPostAfkResync = false;
-        state.afkSessionCounter.reset(now);
-        resetSuppressedSinceRefresh(state);
-        state.afkEntryTrackedEntityIds.clear();
-        state.afkEntryTrackedEntityIds.addAll(collectTrackedEntityIds(player));
-        sendConfiguredMessage(player, state, DeerFoliaConfiguration.afkNetworkOptimization.afkEnterMessage, 0L, 0L);
-    }
-
-    private static void recordAfkSessionSaved(final RuntimeState state, final int bytes, final long now) {
-        if (bytes <= 0) {
-            return;
-        }
-        state.afkSessionCounter.record(bytes, now);
-    }
-
-    private static void sendConfiguredMessage(final ServerPlayer player, final RuntimeState state, final String template, final long savedTrafficBytes, final long savedBandwidthBytesPerSecond) {
+    private static void sendConfiguredMessage(
+        final ServerPlayer player,
+        final String template,
+        final long savedTrafficBytes,
+        final long savedBandwidthBytesPerSecond
+    ) {
         if (player.hasDisconnected() || template == null || template.isEmpty()) {
             return;
         }
@@ -442,11 +747,9 @@ public final class AfkNetworkManager {
             .replace("{player}", player.getGameProfile().name())
             .replace("{saved_traffic}", formatBytes(savedTrafficBytes))
             .replace("{saved_bandwidth}", formatRate(savedBandwidthBytesPerSecond));
-        if (message.isEmpty()) {
-            return;
+        if (!message.isEmpty()) {
+            withSuppressionBypass(() -> player.sendSystemMessage(parseConfiguredMessage(message)));
         }
-
-        withBypass(state, () -> player.sendSystemMessage(parseConfiguredMessage(message)));
     }
 
     private static Component parseConfiguredMessage(final String message) {
@@ -484,7 +787,7 @@ public final class AfkNetworkManager {
         return character == '&' || character == '\u00A7';
     }
 
-    private static Style parseHexColor(final String message, final int prefixIndex) {
+    private static @Nullable Style parseHexColor(final String message, final int prefixIndex) {
         if (prefixIndex + 7 >= message.length() || message.charAt(prefixIndex + 1) != '#') {
             return null;
         }
@@ -495,7 +798,6 @@ public final class AfkNetworkManager {
                 return null;
             }
         }
-
         return Style.EMPTY.withColor(TextColor.fromRgb(Integer.parseInt(hex, 16)));
     }
 
@@ -520,161 +822,15 @@ public final class AfkNetworkManager {
         if (segment.isEmpty()) {
             return;
         }
-
         component.append(Component.literal(segment.toString()).setStyle(style));
         segment.setLength(0);
-    }
-
-    private static boolean isSelfEntityPacket(final ServerPlayer player, final Packet<?> packet) {
-        final int playerId = player.getId();
-        return packet instanceof ClientboundSetEntityDataPacket entityData && entityData.id() == playerId
-            || packet instanceof ClientboundMoveEntityPacket moveEntity && moveEntity.getEntity(player.level()) == player
-            || packet instanceof ClientboundTeleportEntityPacket teleportEntity && teleportEntity.id() == playerId
-            || packet instanceof ClientboundEntityPositionSyncPacket entityPositionSync && entityPositionSync.id() == playerId
-            || packet instanceof ClientboundSetEntityMotionPacket entityMotion && entityMotion.id() == playerId
-            || packet instanceof ClientboundSetEquipmentPacket setEquipment && setEquipment.getEntity() == playerId
-            || packet instanceof ClientboundUpdateAttributesPacket updateAttributes && updateAttributes.getEntityId() == playerId;
-    }
-
-    private static void refreshCategory(final ServerPlayer player, final RuntimeState state, final AfkSuppressibleCategory category) {
-        schedulePlayerTask(player, () -> {
-            switch (category) {
-                case CHUNK_STREAM, BLOCK_UPDATES -> resendVisibleChunks(player, state);
-                case ENTITY_STREAM -> refreshVisibleEntities(player, state);
-                case WORLD_EFFECTS, UI_STREAM -> {
-                }
-            }
-        });
-    }
-
-    private static void resyncAfterAfk(final ServerPlayer player, final RuntimeState state, final boolean fullResync) {
-        schedulePlayerTask(player, () -> {
-            try {
-                final Set<Integer> currentTrackedEntityIds = collectTrackedEntityIds(player);
-                final Set<Integer> staleTrackedEntityIds = new HashSet<>(state.afkEntryTrackedEntityIds);
-                staleTrackedEntityIds.removeAll(currentTrackedEntityIds);
-                if (!staleTrackedEntityIds.isEmpty()) {
-                    sendExplicitEntityRemovals(player, state, staleTrackedEntityIds);
-                }
-                if (fullResync) {
-                    resendVisibleChunks(player, state);
-                    resendVisibleEntities(player, state);
-                }
-            } finally {
-                state.afkEntryTrackedEntityIds.clear();
-                state.awaitingPostAfkResync = false;
-            }
-        });
-    }
-
-    private static void schedulePlayerTask(final ServerPlayer player, final Runnable action) {
-        if (player.hasDisconnected()) {
-            return;
-        }
-
-        player.getBukkitEntity().taskScheduler.scheduleOrExecute(ignored -> {
-            if (!player.hasDisconnected()) {
-                action.run();
-            }
-        });
-    }
-
-    private static void resendVisibleChunks(final ServerPlayer player, final RuntimeState state) {
-        final ServerLevel level = (ServerLevel) player.level();
-        final ChunkMap chunkMap = level.getChunkSource().chunkMap;
-        final List<LevelChunk> chunks = new ArrayList<>();
-        player.getChunkTrackingView().forEach(chunkPos -> {
-            final LevelChunk chunk = chunkMap.getChunkToSend(chunkPos.pack());
-            if (chunk != null) {
-                chunks.add(chunk);
-            }
-        });
-
-        if (chunks.isEmpty()) {
-            return;
-        }
-
-        withBypass(state, () -> {
-            player.connection.send(ClientboundChunkBatchStartPacket.INSTANCE);
-            for (final LevelChunk chunk : chunks) {
-                PlayerChunkSender.sendChunk(player.connection, level, chunk);
-            }
-            player.connection.send(new ClientboundChunkBatchFinishedPacket(chunks.size()));
-        });
-    }
-
-    private static void resendVisibleEntities(final ServerPlayer player, final RuntimeState state) {
-        final ServerLevel level = (ServerLevel) player.level();
-        withBypass(state, () -> {
-            for (final Entity entity : level.getAllEntities()) {
-                final ChunkMap.TrackedEntity tracker = entity.moonrise$getTrackedEntity();
-                if (tracker != null) {
-                    tracker.removePlayer(player);
-                }
-            }
-            for (final Entity entity : level.getAllEntities()) {
-                final ChunkMap.TrackedEntity tracker = entity.moonrise$getTrackedEntity();
-                if (tracker != null) {
-                    tracker.updatePlayer(player);
-                }
-            }
-        });
-    }
-
-    private static void refreshVisibleEntities(final ServerPlayer player, final RuntimeState state) {
-        final Set<Integer> currentTrackedEntityIds = collectTrackedEntityIds(player);
-        final Set<Integer> staleTrackedEntityIds = new HashSet<>(state.afkEntryTrackedEntityIds);
-        staleTrackedEntityIds.removeAll(currentTrackedEntityIds);
-        if (!staleTrackedEntityIds.isEmpty()) {
-            sendExplicitEntityRemovals(player, state, staleTrackedEntityIds);
-        }
-        resendVisibleEntities(player, state);
-        state.afkEntryTrackedEntityIds.clear();
-        state.afkEntryTrackedEntityIds.addAll(currentTrackedEntityIds);
-    }
-
-    private static Set<Integer> collectTrackedEntityIds(final ServerPlayer player) {
-        final ServerLevel level = (ServerLevel) player.level();
-        final Set<Integer> trackedEntityIds = new HashSet<>();
-        for (final Entity entity : level.getAllEntities()) {
-            if (entity == player || entity.isRemoved()) {
-                continue;
-            }
-
-            final ChunkMap.TrackedEntity tracker = entity.moonrise$getTrackedEntity();
-            if (tracker == null || !tracker.seenBy.contains(player.connection)) {
-                continue;
-            }
-
-            trackedEntityIds.add(entity.getId());
-        }
-        return trackedEntityIds;
-    }
-
-    private static void sendExplicitEntityRemovals(final ServerPlayer player, final RuntimeState state, final Set<Integer> entityIds) {
-        withBypass(state, () -> player.connection.send(new ClientboundRemoveEntitiesPacket(entityIds.stream().mapToInt(Integer::intValue).toArray())));
-    }
-
-    private static void withBypass(final RuntimeState state, final Runnable action) {
-        state.bypassDepth++;
-        try {
-            action.run();
-        } finally {
-            state.bypassDepth--;
-        }
-    }
-
-    private static void resetSuppressedSinceRefresh(final RuntimeState state) {
-        for (final AfkSuppressibleCategory category : AfkSuppressibleCategory.values()) {
-            state.suppressedSinceRefresh.put(category, 0L);
-        }
     }
 
     private static String formatBytes(final long bytes) {
         if (bytes < 1024L) {
             return bytes + " B";
         }
-        final String[] units = {"KiB", "MiB", "GiB"};
+        final String[] units = {"KiB", "MiB", "GiB", "TiB"};
         double value = bytes;
         int unitIndex = -1;
         do {
@@ -689,16 +845,29 @@ public final class AfkNetworkManager {
     }
 
     private static final class RuntimeState {
-        private volatile long lastActivityMillis = System.currentTimeMillis();
+        private final ServerPlayer owner;
+        private final AtomicLong lastActivityMillis = new AtomicLong(Util.getMillis());
+        private final AtomicBoolean activityPending = new AtomicBoolean();
         private volatile boolean afk;
-        private volatile boolean awaitingPostAfkResync;
-        private volatile int bypassDepth;
-        private final EnumMap<AfkSuppressibleCategory, Long> suppressedSinceRefresh = new EnumMap<>(AfkSuppressibleCategory.class);
+        private volatile long afkGeneration;
+        private final AtomicInteger suppressedCategoryMask = new AtomicInteger();
+        private final AtomicLongArray suppressedSinceRefresh = new AtomicLongArray(AfkSuppressibleCategory.values().length);
+        private final AtomicBoolean[] refreshScheduled = new AtomicBoolean[AfkSuppressibleCategory.values().length];
+        private final AtomicBoolean[] refreshRequested = new AtomicBoolean[AfkSuppressibleCategory.values().length];
         private final TrafficCounter afkSessionCounter = new TrafficCounter();
-        private final Set<Integer> afkEntryTrackedEntityIds = ConcurrentHashMap.newKeySet();
+        private final Set<ChunkMap.TrackedEntity> trackedEntities = ConcurrentHashMap.newKeySet();
+        private final ConcurrentMap<Integer, ChunkMap.TrackedEntity> trackedEntitiesById = new ConcurrentHashMap<>();
+        private final Set<ChunkMap.TrackedEntity> clientTrackedEntities = ConcurrentHashMap.newKeySet();
+        private final ConcurrentMap<Long, Long> dirtyBlockChunks = new ConcurrentHashMap<>();
+        private final ConcurrentMap<Integer, Long> dirtyEntityIds = new ConcurrentHashMap<>();
+        private long[] clientChunkSnapshot = new long[0];
 
-        private RuntimeState() {
-            resetSuppressedSinceRefresh(this);
+        private RuntimeState(final ServerPlayer owner) {
+            this.owner = owner;
+            for (int i = 0; i < this.refreshScheduled.length; i++) {
+                this.refreshScheduled[i] = new AtomicBoolean();
+                this.refreshRequested[i] = new AtomicBoolean();
+            }
         }
     }
 
@@ -736,35 +905,45 @@ public final class AfkNetworkManager {
     }
 
     private static final class TrafficCounter {
-        private long totalBytes;
-        private long peakBytesPerSecond;
-        private long currentWindowBytes;
-        private long currentWindowStartMillis = System.currentTimeMillis();
+        private final LongAdder totalBytes = new LongAdder();
+        private final AtomicLong currentWindowSecond = new AtomicLong(Util.getMillis() / 1000L);
+        private final AtomicLong currentWindowBytes = new AtomicLong();
+        private final AtomicLong peakBytesPerSecond = new AtomicLong();
 
-        private synchronized void record(final long bytes, final long now) {
-            this.totalBytes += bytes;
-            if (now - this.currentWindowStartMillis >= 1000L) {
-                this.peakBytesPerSecond = Math.max(this.peakBytesPerSecond, this.currentWindowBytes);
-                this.currentWindowBytes = 0L;
-                this.currentWindowStartMillis = now;
+        private void record(final long bytes, final long now) {
+            if (bytes <= 0L) {
+                return;
             }
-            this.currentWindowBytes += bytes;
-            this.peakBytesPerSecond = Math.max(this.peakBytesPerSecond, this.currentWindowBytes);
+            this.totalBytes.add(bytes);
+            final long second = now / 1000L;
+            final long observedSecond = this.currentWindowSecond.get();
+            if (second != observedSecond && this.currentWindowSecond.compareAndSet(observedSecond, second)) {
+                updateMax(this.peakBytesPerSecond, this.currentWindowBytes.getAndSet(0L));
+            }
+            final long current = this.currentWindowBytes.addAndGet(bytes);
+            updateMax(this.peakBytesPerSecond, current);
         }
 
-        private synchronized long totalBytes() {
-            return this.totalBytes;
+        private void reset(final long now) {
+            this.totalBytes.reset();
+            this.currentWindowSecond.set(now / 1000L);
+            this.currentWindowBytes.set(0L);
+            this.peakBytesPerSecond.set(0L);
         }
 
-        private synchronized long peakBytesPerSecond() {
-            return this.peakBytesPerSecond;
+        private long totalBytes() {
+            return this.totalBytes.sum();
         }
 
-        private synchronized void reset(final long now) {
-            this.totalBytes = 0L;
-            this.peakBytesPerSecond = 0L;
-            this.currentWindowBytes = 0L;
-            this.currentWindowStartMillis = now;
+        private long peakBytesPerSecond() {
+            return this.peakBytesPerSecond.get();
+        }
+
+        private static void updateMax(final AtomicLong target, final long candidate) {
+            long current = target.get();
+            while (candidate > current && !target.compareAndSet(current, candidate)) {
+                current = target.get();
+            }
         }
     }
 }

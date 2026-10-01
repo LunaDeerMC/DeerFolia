@@ -116,16 +116,16 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         @Comments({"Message sent once when a player first becomes AFK. Empty string disables it", "Placeholders: {player}", "Supports legacy colors like &7, &a, and hex colors like &#55FFFF"})
         public String afkEnterMessage = "&7[AFKNet] &eYou are now AFK. &7DeerFolia will temporarily suppress non-essential packets to save bandwidth.";
         @Comments({"Message sent when a player becomes active again. Empty string disables it", "Placeholders: {player}, {saved_traffic}, {saved_bandwidth}", "Supports legacy colors like &7, &a, and hex colors like &#55FFFF"})
-        public String afkExitMessage = "&7[AFKNet] &aWelcome back! &7During this AFK session, you saved &b{saved_traffic} &7of traffic and up to &b{saved_bandwidth} &7of bandwidth. &aThanks for helping the server save costs!";
+        public String afkExitMessage = "&7[AFKNet] &aWelcome back! &7During this AFK session, you saved approximately &b{saved_traffic} &7of traffic and up to &b{saved_bandwidth} &7of bandwidth. &aThanks for helping the server save costs!";
         @Comments("Whether look-only rotation changes count as activity")
         public boolean countLookChangesAsActivity = true;
-        @Comments("Resend nearby chunks and tracked entities when a player becomes active again")
+        @Comments("Force a full nearby chunk/entity resync on resume. State actually suppressed while AFK is always resynced for correctness")
         public boolean resyncOnResume = true;
         @Comments("Collect bandwidth saving statistics for commands")
         public boolean statsEnabled = true;
-        @Comments("Suppressible categories that should continue to pass through while AFK. Valid values: chunk-stream, block-updates, entity-stream, world-effects, ui-stream")
+        @Comments({"Suppressible categories that should continue to pass through while AFK. Valid values: chunk-stream, block-updates, entity-stream, world-effects, ui-stream", "Stateful ui-stream packets always pass through to prevent persistent client desynchronization"})
         public List<String> suppressionWhitelistCategories = new ArrayList<>();
-        @Comments("Maximum suppressed bytes per player and category before a category-specific refresh is forced. Set to -1 for unlimited suppression")
+        @Comments("Maximum estimated suppressed bytes per player and category before a category-specific refresh is forced. Set to -1 for unlimited suppression")
         public long maxSuppressedBytesBeforeCategoryResync = -1L;
     }
 
@@ -141,7 +141,8 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         }
 
         Set<String> normalized = new LinkedHashSet<>();
-        for (String categoryName : afkNetworkOptimization.suppressionWhitelistCategories) {
+        List<String> configuredWhitelist = afkNetworkOptimization.suppressionWhitelistCategories == null ? List.of() : afkNetworkOptimization.suppressionWhitelistCategories;
+        for (String categoryName : configuredWhitelist) {
             if (categoryName == null) {
                 continue;
             }
@@ -156,6 +157,7 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
             }
         }
         afkNetworkOptimization.suppressionWhitelistCategories = new ArrayList<>(normalized);
+        cn.lunadeer.mc.deerfolia.afknetwork.AfkNetworkManager.refreshConfiguration();
     }
 
 }
