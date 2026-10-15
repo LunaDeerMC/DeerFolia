@@ -65,7 +65,7 @@ index 8706f2f2dba02f5d29accbb026dd737f0bfde4b0..1a69c0475552e4c488b0244cef7df4c6
                          targetPos = landPos;
                          break;
 diff --git a/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java b/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
-index bd4fab6ad4404a758c7dbb690c32390038c8fb32..6907970f1591a2313d7b4503df3399fa8630dd05 100644
+index 7e498d61e367e1ef7ebac61f46d724cbcf2b0752..1c5007153360d8334f348b954a84c74e2abe88a1 100644
 --- a/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
 +++ b/net/minecraft/world/entity/ai/behavior/ValidateNearbyPoi.java
 @@ -18,9 +18,17 @@ import net.minecraft.world.phys.AABB;
@@ -145,10 +145,10 @@ index 7d3e843c2d3c5e15b7bea7302d6118419d3a4957..3ec702599fca678f5cbd387324b99aad
          BlockPos center = body.blockPosition();
          List<GlobalPos> jobSites = Lists.newArrayList();
 diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
-index d8eab1481f5b83c8cb674b786df96b93af7a607b..b6c2bc7f037ba0b22c841e34174968af42e44d92 100644
+index 33eaf70a0ef70dd03ea0fa528cebb4191f5018c2..f04898b31488e61e425a68e2b0905a73bad2a2c6 100644
 --- a/net/minecraft/world/entity/npc/villager/Villager.java
 +++ b/net/minecraft/world/entity/npc/villager/Villager.java
-@@ -183,6 +183,7 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+@@ -180,6 +180,7 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
      );
  
      public long nextGolemPanic = -1; // DeerFolia - pufferfish DAB
@@ -156,7 +156,7 @@ index d8eab1481f5b83c8cb674b786df96b93af7a607b..b6c2bc7f037ba0b22c841e34174968af
  
      public Villager(final EntityType<? extends Villager> entityType, final Level level) {
          super(entityType, level);
-@@ -903,6 +904,29 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+@@ -906,6 +907,29 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
      }
  
      public void spawnGolemIfNeeded(final ServerLevel level, final long timestamp, final int villagersNeededToAgree) {

@@ -6,10 +6,10 @@ Subject: [PATCH] Fix Path sameAs ConcurrentModificationException with async
 
 
 diff --git a/net/minecraft/world/level/pathfinder/Path.java b/net/minecraft/world/level/pathfinder/Path.java
-index 4aaaa67d9b64f1795224bd6be9ccf072a4ca1ce5..46c5a94a7912b31ecbe22427534f89c794942db4 100644
+index 93c6a0f2103c770d500164ddf4402c142672a005..7ed0607431083e1d8eb8c98b58c165752efb3655 100644
 --- a/net/minecraft/world/level/pathfinder/Path.java
 +++ b/net/minecraft/world/level/pathfinder/Path.java
-@@ -105,6 +105,7 @@ public class Path {
+@@ -129,6 +129,7 @@ public class Path { // DeerFolia - allow async path processing
  
      public boolean sameAs(final @Nullable Path path) {
          if (path == this) return true; // DeerFolia - petal - short circuit

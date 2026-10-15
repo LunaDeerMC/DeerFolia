@@ -96,10 +96,10 @@ index b568f90116dc0b7e57298f9ecada1c6b1dcb337d..d54f4b342000f40fac21310faad092ed
          try {
              value.append("\n   BrandInfo: ").append(String.format("%s (%s) version %s", build.brandName(), build.brandId(), build.asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_FULL)));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 3fac32b420ce4ae74166eac43d38c51c1fd513cf..c7e9ebf4f0241f0d69375a6536ec317e608494eb 100644
+index c1f7510917ebe606280c63d6150829fb0562f474..93c676abbfad405c93b9f3629ea86faba781a447 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -262,7 +262,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
+@@ -243,7 +243,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  import org.yaml.snakeyaml.error.MarkedYAMLException;
  
  public final class CraftServer implements Server {
@@ -108,13 +108,13 @@ index 3fac32b420ce4ae74166eac43d38c51c1fd513cf..c7e9ebf4f0241f0d69375a6536ec317e
      private final String serverVersion;
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
-@@ -399,7 +399,7 @@ public final class CraftServer implements Server {
+@@ -380,7 +380,7 @@ public final class CraftServer implements Server {
          this.console = console;
          this.playerList = (DedicatedPlayerList) playerList;
          this.playerView = MCUtil.transformUnmodifiable(playerList.getPlayers(), ServerPlayer::getBukkitEntity);
 -        this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
 +        this.serverVersion = cn.lunadeer.mc.deerfolia.ServerBuildInfoHelper.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version // DeerFolia - avoid ServerBuildInfo ServiceLoader startup failure
-         this.structureManager = new CraftStructureManager(console.getStructureManager(), console.registryAccess());
+         this.structureManager = new CraftStructureManager(console.getStructureTemplateManager(), console.registryAccess());
          this.serverTickManager = new CraftServerTickManager(console.tickRateManager());
          this.serverLinks = new CraftServerLinks(console);
 diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java

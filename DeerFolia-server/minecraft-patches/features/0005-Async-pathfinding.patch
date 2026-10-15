@@ -313,7 +313,7 @@ index e44814cfb6afb594456b8215bd13a92e93de2c85..a87622eb56a224eeeec26351ca4890b0
          if (!this.isDone()) {
              if (this.canUpdatePath()) {
 diff --git a/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java b/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
-index 48b93678b85c6296f6ae57876926dc6763e84faa..e30c9aa7d72db630d3ac566673556aa9ac401aec 100644
+index 6cdf7a6e61c329e031c9f12170fa413444f8c863..1168e8bbdad810e48f96c8aade16c904befbd666 100644
 --- a/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 @@ -24,9 +24,25 @@ public class GroundPathNavigation extends PathNavigation {
@@ -343,7 +343,7 @@ index 48b93678b85c6296f6ae57876926dc6763e84faa..e30c9aa7d72db630d3ac566673556aa9
      }
  
 diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
-index 2ea1ec39a37899ae1510d0036aa670e758077537..7da9bb2aa772e4b0206cf61754b133826504547d 100644
+index 34b71f5276a00dbbc375728246ae544953a54146..6ba3b8f8b14916e1b06120eeb75d637409c79bd2 100644
 --- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 +++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 @@ -167,6 +167,14 @@ public abstract class PathNavigation {
@@ -391,7 +391,7 @@ index 2ea1ec39a37899ae1510d0036aa670e758077537..7da9bb2aa772e4b0206cf61754b13382
  
          return path;
      }
-@@ -251,8 +277,8 @@ public abstract class PathNavigation {
+@@ -255,8 +281,8 @@ public abstract class PathNavigation {
              return false;
          }
  
@@ -402,7 +402,7 @@ index 2ea1ec39a37899ae1510d0036aa670e758077537..7da9bb2aa772e4b0206cf61754b13382
              return false;
          }
  
-@@ -272,6 +298,7 @@ public abstract class PathNavigation {
+@@ -276,6 +302,7 @@ public abstract class PathNavigation {
          if (this.hasDelayedRecomputation) {
              this.recomputePath();
          }
@@ -410,7 +410,7 @@ index 2ea1ec39a37899ae1510d0036aa670e758077537..7da9bb2aa772e4b0206cf61754b13382
  
          if (!this.isDone()) {
              if (this.canUpdatePath()) {
-@@ -297,6 +324,7 @@ public abstract class PathNavigation {
+@@ -301,6 +328,7 @@ public abstract class PathNavigation {
      }
  
      protected void followThePath() {
@@ -418,7 +418,7 @@ index 2ea1ec39a37899ae1510d0036aa670e758077537..7da9bb2aa772e4b0206cf61754b13382
          Vec3 mobPos = this.getTempMobPos();
          this.maxDistanceToWaypoint = this.mob.getBbWidth() > 0.75F ? this.mob.getBbWidth() / 2.0F : 0.75F - this.mob.getBbWidth() / 2.0F;
          Vec3i currentNodePos = this.path.getNextNodePos();
-@@ -457,7 +485,7 @@ public abstract class PathNavigation {
+@@ -461,7 +489,7 @@ public abstract class PathNavigation {
      public boolean shouldRecomputePath(final BlockPos pos) {
          if (this.hasDelayedRecomputation) {
              return false;
@@ -642,7 +642,7 @@ index dbc4071ec75f9618901d4ce2cc7a01577807fcdc..a1d9c812b9f5581cbb5e07906106f9ce
          }
      }
 diff --git a/net/minecraft/world/entity/monster/Strider.java b/net/minecraft/world/entity/monster/Strider.java
-index 0fbbe892217a5b894a2132439cc44e07fed78d8b..42126ac9b93c6bdc3568c6646ea4920b51aff6e0 100644
+index dcbbdf1aa3bcd18996cd382fd46949722313f45c..6d3fad8089e25200efb3c7c9e3bfbd053ea57c84 100644
 --- a/net/minecraft/world/entity/monster/Strider.java
 +++ b/net/minecraft/world/entity/monster/Strider.java
 @@ -525,9 +525,25 @@ public class Strider extends Animal implements ItemSteerable {
@@ -672,7 +672,7 @@ index 0fbbe892217a5b894a2132439cc44e07fed78d8b..42126ac9b93c6bdc3568c6646ea4920b
          }
  
 diff --git a/net/minecraft/world/entity/monster/warden/Warden.java b/net/minecraft/world/entity/monster/warden/Warden.java
-index 3b4567fe9bf95acef9499a5455e59fbe2ef29f05..cf02ff691395f27ea4b114df46f5f0c289cecd2d 100644
+index 47f0d61d6fd066c577a744e281a014f518b5779e..6afa2cdb9bb750e5e2d0d8205052a2b714d2a938 100644
 --- a/net/minecraft/world/entity/monster/warden/Warden.java
 +++ b/net/minecraft/world/entity/monster/warden/Warden.java
 @@ -561,6 +561,16 @@ public class Warden extends Monster implements VibrationSystem {
@@ -693,10 +693,10 @@ index 3b4567fe9bf95acef9499a5455e59fbe2ef29f05..cf02ff691395f27ea4b114df46f5f0c2
                      @Override
                      protected float distance(final Node from, final Node to) {
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 64e0c4a60a74cd33f2b99f34fa2a419abf3a0c02..47b542e167f2d4d049b60c7ef218aa5d4f7749e3 100644
+index b5508c0488ba395ad9eb03baeee01922e2ec3364..58b2c1435969e10866b803f69aaf8517256503fe 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
-@@ -472,7 +472,10 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+@@ -476,7 +476,10 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
  
      public @Nullable BlockEntity getBlockEntity(final BlockPos pos, final LevelChunk.EntityCreationType creationType) {
          // CraftBukkit start
@@ -709,19 +709,19 @@ index 64e0c4a60a74cd33f2b99f34fa2a419abf3a0c02..47b542e167f2d4d049b60c7ef218aa5d
              blockEntity = this.blockEntities.get(pos);
          }
 diff --git a/net/minecraft/world/level/pathfinder/Path.java b/net/minecraft/world/level/pathfinder/Path.java
-index ce536d07512c3cb9a8f56a1c4f6506db50161f8b..4aaaa67d9b64f1795224bd6be9ccf072a4ca1ce5 100644
+index 551bb7fac42ccd9ccd6ea4a5abc766e970180a77..93c6a0f2103c770d500164ddf4402c142672a005 100644
 --- a/net/minecraft/world/level/pathfinder/Path.java
 +++ b/net/minecraft/world/level/pathfinder/Path.java
-@@ -11,7 +11,7 @@ import net.minecraft.world.entity.Entity;
+@@ -12,7 +12,7 @@ import net.minecraft.world.entity.Entity;
  import net.minecraft.world.phys.Vec3;
  import org.jspecify.annotations.Nullable;
  
 -public final class Path {
-+public class Path {
-     public static final StreamCodec<FriendlyByteBuf, Path> STREAM_CODEC = StreamCodec.of((output, value) -> value.writeToStream(output), Path::createFromStream);
-     public final List<Node> nodes;
-     private Path.@Nullable DebugData debugData;
-@@ -27,6 +27,12 @@ public final class Path {
++public class Path { // DeerFolia - allow async path processing
+     public static final StreamCodec<ByteBuf, Path> DEBUG_STREAM_CODEC = StreamCodec.composite(
+         ByteBufCodecs.BOOL,
+         p -> p.reached,
+@@ -51,6 +51,12 @@ public final class Path {
          this.reached = reached;
      }
  
@@ -734,7 +734,7 @@ index ce536d07512c3cb9a8f56a1c4f6506db50161f8b..4aaaa67d9b64f1795224bd6be9ccf072
      public void advance() {
          this.nextNodeIndex++;
      }
-@@ -98,6 +104,7 @@ public final class Path {
+@@ -122,6 +128,7 @@ public final class Path {
      }
  
      public boolean sameAs(final @Nullable Path path) {
@@ -743,7 +743,7 @@ index ce536d07512c3cb9a8f56a1c4f6506db50161f8b..4aaaa67d9b64f1795224bd6be9ccf072
      }
  
 diff --git a/net/minecraft/world/level/pathfinder/PathFinder.java b/net/minecraft/world/level/pathfinder/PathFinder.java
-index 253074a0a14115cd3d18aaae6fa5822cf32346c9..1ab4043dc74a9407dc57c2bed78aa631719feb06 100644
+index b903ae067130b460fca782fa8f37e9405670eeee..1526023ccbc4917ebb12556672a58f431932463f 100644
 --- a/net/minecraft/world/level/pathfinder/PathFinder.java
 +++ b/net/minecraft/world/level/pathfinder/PathFinder.java
 @@ -26,10 +26,22 @@ public class PathFinder {

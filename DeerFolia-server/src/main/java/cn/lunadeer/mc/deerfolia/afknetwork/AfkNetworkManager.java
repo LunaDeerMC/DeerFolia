@@ -70,6 +70,7 @@ import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
+import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket;
@@ -494,7 +495,7 @@ public final class AfkNetworkManager {
         if (packet instanceof ClientboundAddEntityPacket addEntity) {
             markDirtyVersion(state.dirtyEntityIds, addEntity.getId());
         } else if (packet instanceof ClientboundRemoveEntitiesPacket removeEntities) {
-            for (final int entityId : removeEntities.getEntityIds()) {
+            for (final int entityId : removeEntities.entityIds()) {
                 markDirtyVersion(state.dirtyEntityIds, entityId);
             }
         } else if (packet instanceof ClientboundMoveEntityPacket moveEntity) {
@@ -527,6 +528,8 @@ public final class AfkNetworkManager {
             markDirtyVersion(state.dirtyEntityIds, projectilePower.getId());
         } else if (packet instanceof ClientboundMoveMinecartPacket moveMinecart) {
             markDirtyVersion(state.dirtyEntityIds, moveMinecart.entityId());
+        } else if (packet instanceof ClientboundSwingAnimationPacket swingAnimation) {
+            markDirtyVersion(state.dirtyEntityIds, swingAnimation.entityId());
         } else if (packet instanceof ClientboundAnimatePacket animate) {
             markDirtyVersion(state.dirtyEntityIds, animate.getId());
         } else if (packet instanceof ClientboundEntityEventPacket entityEvent) {
@@ -687,6 +690,7 @@ public final class AfkNetworkManager {
             || packet instanceof ClientboundProjectilePowerPacket
             || packet instanceof ClientboundMoveMinecartPacket
             || packet instanceof ClientboundAnimatePacket
+            || packet instanceof ClientboundSwingAnimationPacket
             || packet instanceof ClientboundEntityEventPacket
             || packet instanceof ClientboundDamageEventPacket) {
             return AfkSuppressibleCategory.ENTITY_STREAM;
@@ -730,7 +734,8 @@ public final class AfkNetworkManager {
             || packet instanceof ClientboundEntityPositionSyncPacket entityPositionSync && entityPositionSync.id() == playerId
             || packet instanceof ClientboundSetEntityMotionPacket entityMotion && entityMotion.id() == playerId
             || packet instanceof ClientboundSetEquipmentPacket setEquipment && setEquipment.getEntity() == playerId
-            || packet instanceof ClientboundUpdateAttributesPacket updateAttributes && updateAttributes.getEntityId() == playerId;
+            || packet instanceof ClientboundUpdateAttributesPacket updateAttributes && updateAttributes.getEntityId() == playerId
+            || packet instanceof ClientboundSwingAnimationPacket swingAnimation && swingAnimation.entityId() == playerId;
     }
 
     private static void sendConfiguredMessage(

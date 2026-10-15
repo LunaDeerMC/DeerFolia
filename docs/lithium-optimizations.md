@@ -5,7 +5,8 @@ DeerFolia ports server-side optimizations from
 Paper's patches, Moonrise, and Folia's region-threaded execution model.
 
 The current port is based on Lithium `mc26.2-0.25.2`, commit
-`8940fbcb39bac29b7a3dc279fa61595cd9dc4deb`. Lithium is licensed under the
+`8940fbcb39bac29b7a3dc279fa61595cd9dc4deb`, adapted to the Minecraft 26.3
+Folia base. Lithium is licensed under the
 GNU Lesser General Public License version 3; a copy is included at
 `resources/licenses/Lithium-LGPL-3.0.txt`.
 
@@ -35,8 +36,7 @@ switch; the remaining options control optimization groups.
 - Deep passenger traversal avoids recursively composed streams.
 - Piston and redstone hot paths reuse a cached direction array.
 - Entity attribute synchronization uses identity-based fastutil sets.
-- Inactive swing and glide updates return before expensive equipment or
-  attribute work.
+- Inactive glide updates return before expensive equipment or attribute work.
 - Frozen entities avoid a legacy block-state lookup until frost handling is
   actually required.
 - Dedicated servers skip client-only sprint particle work.
@@ -49,8 +49,11 @@ switch; the remaining options control optimization groups.
 - Dry weather precipitation ticks return before biome work when neither ice nor
   snow can form.
 - Freeze checks reuse an already fetched block state's fluid state.
-- Fluid spreading evaluates cheap rejection checks first and recognizes sign
-  blocks without a tag lookup.
+- Fluid spreading evaluates cheap rejection checks first.
+
+Minecraft 26.3 replaced the old swing state and fluid block allowlist. The port
+uses those upstream implementations instead of restoring the removed swing
+method or replacing the new `WASHED_AWAY_BY_FLUIDS` tag semantics.
 
 ## Optimizations already supplied by the base
 
