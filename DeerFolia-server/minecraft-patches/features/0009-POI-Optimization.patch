@@ -5,62 +5,31 @@ Subject: [PATCH] POI Optimization
 
 
 diff --git a/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java b/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
-index 8706f2f2dba02f5d29accbb026dd737f0bfde4b0..1a69c0475552e4c488b0244cef7df4c6d08fdf64 100644
+index 8706f2f2dba02f5d29accbb026dd737f0bfde4b0..853cbd76e5fcc4d9d4bb4e13082d5364bfac6a75 100644
 --- a/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
 +++ b/net/minecraft/world/entity/ai/behavior/GoToClosestVillage.java
-@@ -11,6 +11,38 @@ import net.minecraft.world.entity.npc.villager.Villager;
+@@ -11,6 +11,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
  import net.minecraft.world.phys.Vec3;
  
  public class GoToClosestVillage {
-+    // DeerFolia start - POI optimization - cache village distance
-+    private static final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<CachedVillageDistance> villageDistanceCache = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
-+
-+    private static final class CachedVillageDistance {
-+        int distance;
-+        long cacheTime;
-+
-+        CachedVillageDistance(final int distance, final long cacheTime) {
-+            this.distance = distance;
-+            this.cacheTime = cacheTime;
-+        }
-+    }
-+
-+    private static int getCachedSectionsToVillage(final PoiManager poiManager, final SectionPos sectionPos, final long gameTime) {
-+        if (!cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.enabled) {
-+            return poiManager.sectionsToVillage(sectionPos);
-+        }
-+        long sectionKey = sectionPos.asLong();
-+        CachedVillageDistance cached = villageDistanceCache.get(sectionKey);
-+        int cacheDuration = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.poiOptimizations.villageDistanceCacheDuration;
-+        if (cached != null && gameTime - cached.cacheTime < cacheDuration) {
-+            return cached.distance;
-+        }
-+        int distance = poiManager.sectionsToVillage(sectionPos);
-+        villageDistanceCache.put(sectionKey, new CachedVillageDistance(distance, gameTime));
-+        if (villageDistanceCache.size() > 1000 && gameTime % 200 == 0) {
-+            villageDistanceCache.long2ObjectEntrySet().removeIf(entry -> gameTime - entry.getValue().cacheTime > cacheDuration * 2L);
-+        }
-+        return distance;
-+    }
-+    // DeerFolia end - POI optimization
-+
++    // DeerFolia - query the world-owned POI distance tracker directly; a coordinate-only static TTL cache is unsafe.
      public static BehaviorControl<Villager> create(final float speedModifier, final int closeEnoughDistance) {
          return BehaviorBuilder.create(i -> i.group(i.absent(MemoryModuleType.WALK_TARGET)).apply(i, walkTarget -> (level, body, timestamp) -> {
              if (level.isVillage(body.blockPosition())) {
-@@ -18,13 +50,13 @@ public class GoToClosestVillage {
+@@ -18,13 +19,13 @@ public class GoToClosestVillage {
              }
  
              PoiManager poiManager = level.getPoiManager();
 -            int sectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(body.blockPosition()));
-+            int sectionsToVillage = getCachedSectionsToVillage(poiManager, SectionPos.of(body.blockPosition()), timestamp); // DeerFolia - POI optimization
++            int sectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(body.blockPosition())); // DeerFolia - POI optimization
              Vec3 targetPos = null;
  
              for (int j = 0; j < 5; j++) {
 -                Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -poiManager.sectionsToVillage(SectionPos.of(p)));
-+                Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -getCachedSectionsToVillage(poiManager, SectionPos.of(p), timestamp)); // DeerFolia - POI optimization
++                Vec3 landPos = LandRandomPos.getPos(body, 15, 7, p -> -poiManager.sectionsToVillage(SectionPos.of(p))); // DeerFolia - POI optimization
                  if (landPos != null) {
 -                    int landPosSectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(BlockPos.containing(landPos)));
-+                    int landPosSectionsToVillage = getCachedSectionsToVillage(poiManager, SectionPos.of(BlockPos.containing(landPos)), timestamp); // DeerFolia - POI optimization
++                    int landPosSectionsToVillage = poiManager.sectionsToVillage(SectionPos.of(BlockPos.containing(landPos))); // DeerFolia - POI optimization
                      if (landPosSectionsToVillage < sectionsToVillage) {
                          targetPos = landPos;
                          break;

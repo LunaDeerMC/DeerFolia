@@ -1,0 +1,12 @@
+name: LithiumPhase1E2E
+version: 1.0
+main: phase1.Phase1Plugin
+api-version: '26.3'
+folia-supported: true
+commands:
+  phase1:
+    description: Local integration checks and region-thread benchmarks
+    permission: phase1.admin
+permissions:
+  phase1.admin:
+    default: op

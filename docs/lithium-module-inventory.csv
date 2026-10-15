@@ -1,0 +1,173 @@
+模块,参考平台,声明默认值（受父分组影响）,a81b44b 基线机制判断,建议优先级,判断与边界,详细核对
+mixin.ai,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/ai.md
+mixin.ai.non_poi_block_search,fabric+neoforge,true,部分,P1/P3,海龟蛋等 MoveToBlockGoal 剪枝 P1；驱避物已有 section maybeHas，剩余负查询 P3,lithium-analysis/ai.md
+mixin.ai.pathing,fabric+neoforge,true,部分,P2（P0前置）,已有坐标/chunk引用缓存；状态类型、危险section与读取视图仍可改进，先明确异步所有权,lithium-analysis/ai.md
+mixin.ai.poi,fabric+neoforge,true,已有主体/部分,P3残余,Moonrise 查询/最近N/随机/portal 已覆盖主体；类型直查与精确占位需热点证据,lithium-analysis/ai.md
+mixin.ai.poi.fast_portals,fabric+neoforge,true,已有主体/部分,P3残余,Moonrise 查询/最近N/随机/portal 已覆盖主体；类型直查与精确占位需热点证据,lithium-analysis/ai.md
+mixin.ai.poi.tasks,fabric+neoforge,true,已有主体/部分,P3残余,Moonrise 查询/最近N/随机/portal 已覆盖主体；类型直查与精确占位需热点证据,lithium-analysis/ai.md
+mixin.ai.raid,fabric+neoforge,true,部分,P2残余,bossbar 合并已移植；旗帜比较模板缓存尚有空间,lithium-analysis/ai.md
+mixin.ai.sensor,fabric+neoforge,true,组合/分组,见具体机制,传感器机制按子项判断,lithium-analysis/ai.md
+mixin.ai.sensor.replace_streams,fabric+neoforge,true,已有,保持,TemptingSensor 已单遍并保留 Bukkit 事件,lithium-analysis/ai.md
+mixin.ai.sensor.replace_streams.tempting,fabric+neoforge,true,已有,保持,TemptingSensor 已单遍并保留 Bukkit 事件,lithium-analysis/ai.md
+mixin.ai.sensor.secondary_poi,fabric+neoforge,true,已有,保持,无副工作点职业已提前退出；额外降频是另一种行为策略,lithium-analysis/ai.md
+mixin.ai.task,fabric+neoforge,true,组合/分组,见具体机制,调度/记忆/执行优化分别评估,lithium-analysis/ai.md
+mixin.ai.task.launch,fabric+neoforge,true,缺口,P1,Brain 可运行/正在运行任务索引，保留优先级和迭代语义,lithium-analysis/ai.md
+mixin.ai.task.memory_changes,fabric+neoforge,true,缺口,P1,记忆存在性版本与前置条件缓存，非完整任务结果缓存,lithium-analysis/ai.md
+mixin.ai.task.replace_streams,fabric+neoforge,true,已有,保持,GateBehavior/RunningPolicy/ShufflingList 主要热点已去 stream,lithium-analysis/ai.md
+mixin.ai.task.run,fabric+neoforge,true,组合/分组,见具体机制,具体执行优化依使用场景,lithium-analysis/ai.md
+mixin.ai.task.run.long_jump_weighted_choice,fabric+neoforge,true,缺口,P2,共享不可变偏移模板/加权候选结构；须明确概率和随机序列语义,lithium-analysis/ai.md
+mixin.ai.useless_behaviors,fabric+neoforge,true,缺口,P2,停用无用行为必须随职业/Brain变化恢复,lithium-analysis/ai.md
+mixin.ai.useless_behaviors.nitwit_job_search,fabric+neoforge,true,缺口,P2,停用无用行为必须随职业/Brain变化恢复,lithium-analysis/ai.md
+mixin.ai.useless_sensors,fabric+neoforge,true,缺口,P2,成年动物/山羊等无用传感器；Bukkit年龄可逆、记忆消费者须检查,lithium-analysis/ai.md
+mixin.ai.useless_sensors.baby_specific_sensors,fabric+neoforge,true,缺口,P2,成年动物/山羊等无用传感器；Bukkit年龄可逆、记忆消费者须检查,lithium-analysis/ai.md
+mixin.ai.useless_sensors.goat_item_sensor,fabric+neoforge,true,缺口,P2,成年动物/山羊等无用传感器；Bukkit年龄可逆、记忆消费者须检查,lithium-analysis/ai.md
+mixin.alloc,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/micro-existing.md
+mixin.alloc.chunk_random,fabric+neoforge,true,路径已替代,不搬原实现,Moonrise 稀疏 random tick 已减少位置生成；禁用全世界共享可变位置思路,lithium-analysis/micro-existing.md
+mixin.alloc.composter,fabric+neoforge,true,已有,保持,共享固定 sided slots 数组已移植,lithium-analysis/micro-existing.md
+mixin.alloc.deep_passengers,fabric+neoforge,true,已有,保持/验证,已减少递归 stream；验证 eager snapshot 与回调修改骑乘树的时序,lithium-analysis/micro-existing.md
+mixin.alloc.entity_iteration,fabric+neoforge,true,路径已替代,不优先,主要实体查询由 Moonrise EntityLookup 实现，旧类不代表当前热点,lithium-analysis/micro-existing.md
+mixin.alloc.entity_tracker,fabric+neoforge,true,已有,保持,Paper ReferenceOpenHashSet 已覆盖,lithium-analysis/micro-existing.md
+mixin.alloc.enum_values,fabric+neoforge,true,已有,保持/测量,活塞/红石 Direction 数组已有；JIT净收益须实测,lithium-analysis/micro-existing.md
+mixin.alloc.enum_values.piston_block,fabric+neoforge,true,已有,保持/测量,活塞/红石 Direction 数组已有；JIT净收益须实测,lithium-analysis/micro-existing.md
+mixin.alloc.enum_values.piston_handler,fabric+neoforge,true,已有,保持/测量,活塞/红石 Direction 数组已有；JIT净收益须实测,lithium-analysis/micro-existing.md
+mixin.alloc.enum_values.redstone_wire,fabric+neoforge,true,已有,保持/测量,活塞/红石 Direction 数组已有；JIT净收益须实测,lithium-analysis/micro-existing.md
+mixin.alloc.explosion_behavior,fabric+neoforge,true,已有,保持/测量,Optional/lambda 局部优化已移植,lithium-analysis/micro-existing.md
+mixin.alloc.nbt,fabric+neoforge,true,已有,保持,CompoundTag 构造/反序列化/copy 已 fastutil,lithium-analysis/micro-existing.md
+mixin.block,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/micro-existing.md
+mixin.block.flatten_states,fabric+neoforge,true,已有,保持,流体 isEmpty 和其他状态属性已有缓存,lithium-analysis/micro-existing.md
+mixin.block.fluid,fabric+neoforge,true,部分,P2残余,已有状态缓存/遮挡缓存；流体多方向重复搜索仍可优化,lithium-analysis/world-chunks.md
+mixin.block.fluid.flow,fabric+neoforge,true,部分,P2,共享 BFS/局部缓存，保留 SpreadContext、新标签、事件和不加载邻区,lithium-analysis/world-chunks.md
+mixin.block.hopper,fabric+neoforge,true,部分,P2（P1基础）,Paper局部优化已有；变化通知/失败复用/完整休眠缺失,lithium-analysis/inventory-ticking.md
+mixin.block.moving_block_shapes,fabric+neoforge,true,缺口（基础算法已有）,P2,有限标准位移形状缓存；动态形状/特殊进度回退,lithium-analysis/micro-existing.md
+mixin.block.redstone_wire,fabric+neoforge,true,部分,P2,局部复用功率查询；保留算法模式、传播顺序与事件,lithium-analysis/micro-existing.md
+mixin.block_pattern_matching,fabric+neoforge,true,缺口,P3,必要材料预筛主要改善末地结构搜索尖峰,lithium-analysis/world-chunks.md
+mixin.cached_hashcode,fabric+neoforge,true,路径已替代,不迁入,Moonrise 流体遮挡缓存已不用该旧 key 热路径,lithium-analysis/micro-existing.md
+mixin.chunk,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/world-chunks.md
+mixin.chunk.entity_class_groups,fabric+neoforge,true,部分,P2按消费者,Moonrise 已硬碰撞/class/type 索引；按投射物等消费者扩展,lithium-analysis/entities-collisions.md
+mixin.chunk.no_locking,fabric+neoforge,true,调试锁已去除,不删除实际锁,当前 synchronized 涉及一致性，不能当作 debug 检查移除,lithium-analysis/world-chunks.md
+mixin.chunk.no_validation,fabric+neoforge,true,已有,保持,位存储热路径已有移除检查/更便宜操作,lithium-analysis/world-chunks.md
+mixin.chunk.palette,fabric+neoforge,true,已有主体/部分,P3残余,FastHashMapPalette 与主要计数路径已有；小阈值/通用count待热点,lithium-analysis/world-chunks.md
+mixin.chunk.serialization,fabric+neoforge,true,已有主体,保持,Moonrise palette压缩/序列化，保留Anti-Xray和一致性,lithium-analysis/world-chunks.md
+mixin.chunk_load_tricks,neoforge,true,平台不适用,跳过,NeoForge加载兼容特例；DeerFolia使用Moonrise,lithium-analysis/world-chunks.md
+mixin.client_tick,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.entity,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.entity.base_tick,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.entity.base_tick.unused_ambient_sound,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.entity.base_tick.unused_water_supply,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.entity.unused_brain,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.particle,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.client_tick.particle.biome_particles,fabric+neoforge,true,客户端,跳过,专用服务端不迁客户端tick/粒子/Brain逻辑,lithium-analysis/micro-existing.md
+mixin.collections,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/micro-existing.md
+mixin.collections.attributes,fabric+neoforge,true,已有,保持/测量,identity集合已移植，但原AttributeInstance也是身份equals，净收益须测,lithium-analysis/micro-existing.md
+mixin.collections.block_entity_tickers,fabric+neoforge,true,缺口,P3,HashMap换fastutil仅局部内存/操作优化，不免除tick工作,lithium-analysis/inventory-ticking.md
+mixin.collections.brain,fabric+neoforge,true,缺口,P2配套,紧凑集合配合Brain索引；sensor顺序必须保留,lithium-analysis/ai.md
+mixin.collections.chunk_tickets,fabric+neoforge,true,已有,保持,SortedArraySet.removeIf 已单次压缩,lithium-analysis/micro-existing.md
+mixin.collections.entity_by_type,fabric+neoforge,true,路径已替代,不优先,主要查询已走Moonrise类索引,lithium-analysis/micro-existing.md
+mixin.collections.entity_filtering,fabric+neoforge,true,路径已替代,不优先,原EntitySection/类过滤不是主要热路；保留接口校验,lithium-analysis/micro-existing.md
+mixin.collections.entity_ticking,fabric+neoforge,true,路径已替代,保持,Moonrise迭代安全集合与Folia区域集合,lithium-analysis/micro-existing.md
+mixin.collections.mob_spawning,fabric+neoforge,true,部分/待运行确认,P2调查/P3,Builder有membership哈希，CODEC可能线性；enum类别索引P3,lithium-analysis/micro-existing.md
+mixin.collections.poi_types,fabric,true,缺口,P3,BlockState→POI map仍HashMap；与空间索引不同，低优先基准,lithium-analysis/micro-existing.md
+mixin.compat.worldedit,fabric,false,平台实现不适用/思想必要,依赖项,直接写块也应使缓存失效；不搬Fabric专用兼容层,lithium-analysis/micro-existing.md
+mixin.debug,fabric+neoforge,false,验证工具,不作为生产优化,默认父组关闭；可借鉴palette差分验证,lithium-analysis/micro-existing.md
+mixin.debug.palette,fabric+neoforge,true,验证工具,不作为生产优化,默认父组关闭；可借鉴palette差分验证,lithium-analysis/micro-existing.md
+mixin.entity,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/entities-collisions.md
+mixin.entity.collisions,fabric+neoforge,true,已有主体/局部缺口,见子项,Moonrise核心保留；空效果/支撑短路等按机制评估,lithium-analysis/entities-collisions.md
+mixin.entity.collisions.block_effects,fabric+neoforge,true,缺口,P1,空flush O(1)返回/惰性分配，保留Paper recorded BlockPos与顺序,lithium-analysis/entities-collisions.md
+mixin.entity.collisions.intersection,fabric+neoforge,true,已有主体,保持,Moonrise硬碰撞/section/shape context快路,lithium-analysis/entities-collisions.md
+mixin.entity.collisions.movement,fabric+neoforge,true,部分,P2/P3定向,已有单轴AABB；可测向下被支撑完全阻止的单次快路径,lithium-analysis/entities-collisions.md
+mixin.entity.collisions.unpushable_cramming,fabric+neoforge,true,缺口/语义不同,P3谨慎,Paper攀爬规则、Bukkit collidable/exemptions动态，不能直接排除,lithium-analysis/entities-collisions.md
+mixin.entity.equipment_tracking,fabric+neoforge,true,缺口,P2（P1追踪基础）,先非玩家，数量/类型/组件追踪、override、重入和数据包失效,lithium-analysis/entities-collisions.md
+mixin.entity.equipment_tracking.enchantment_ticking,fabric+neoforge,true,缺口,P2（P1追踪基础）,先非玩家，数量/类型/组件追踪、override、重入和数据包失效,lithium-analysis/entities-collisions.md
+mixin.entity.equipment_tracking.equipment_changes,fabric+neoforge,true,缺口,P2（P1追踪基础）,先非玩家，数量/类型/组件追踪、override、重入和数据包失效,lithium-analysis/entities-collisions.md
+mixin.entity.fast_elytra_check,fabric+neoforge,true,已有,保持,DeerFolia glide early return,lithium-analysis/entities-collisions.md
+mixin.entity.fast_powder_snow_check,fabric+neoforge,true,已有,保持,冻结状态延后方块查询已移植,lithium-analysis/entities-collisions.md
+mixin.entity.fast_retrieval,fabric+neoforge,true,路径已替代,保持,Moonrise空间/class/type查询,lithium-analysis/entities-collisions.md
+mixin.entity.framed_maps,fabric+neoforge,true,部分,P2,减少每观察者重复维护；保留隐身装备、renderer和跨region同步,lithium-analysis/entities-collisions.md
+mixin.entity.inactive_navigations,fabric+neoforge,true,部分,P2,区域列表已有；活动路径子集与生命周期未覆盖,lithium-analysis/ai.md
+mixin.entity.projectile_projectile_collisions,fabric+neoforge,true,缺口,P2,在Moonrise索引扩展保守可命中分类，保留动态条件与新标签,lithium-analysis/entities-collisions.md
+mixin.entity.replace_entitytype_predicates,fabric+neoforge,true,部分,P1小补充,ArmorStand已类型查询，OldMinecartBehavior仍有过滤全实体调用,lithium-analysis/entities-collisions.md
+mixin.entity.sprinting_particles,fabric+neoforge,true,已有,保持,服务端跳客户端冲刺粒子已移植,lithium-analysis/entities-collisions.md
+mixin.experimental,fabric+neoforge,false,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/entities-collisions.md
+mixin.experimental.entity,fabric+neoforge,true,实验机制,见子项,父experimental默认关闭；不因子项default=true视为默认稳定开启,lithium-analysis/entities-collisions.md
+mixin.experimental.entity.block_caching,fabric+neoforge,true,缺持续失效机制/底层已有,P3,静止实体support/suffocation需section revision和动态shape失效,lithium-analysis/entities-collisions.md
+mixin.experimental.entity.block_caching.block_support,fabric+neoforge,true,缺持续失效机制/底层已有,P3,静止实体support/suffocation需section revision和动态shape失效,lithium-analysis/entities-collisions.md
+mixin.experimental.entity.block_caching.suffocation,fabric+neoforge,true,缺持续失效机制/底层已有,P3,静止实体support/suffocation需section revision和动态shape失效,lithium-analysis/entities-collisions.md
+mixin.experimental.entity.item_entity_merging,fabric+neoforge,true,缺分类机制,P2,密度阈值+Item/组件/数量索引；保留事件/顺序/数量与低密度回退,lithium-analysis/entities-collisions.md
+mixin.gen,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/world-chunks.md
+mixin.gen.cached_generator_settings,fabric+neoforge,true,已有,保持/复核,海平面缓存已移植；核实registry生命周期与净收益,lithium-analysis/micro-existing.md
+mixin.math,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/micro-existing.md
+mixin.math.fast_blockpos,fabric+neoforge,true,已有,保持,Paper方向字段与固定偏移已覆盖,lithium-analysis/micro-existing.md
+mixin.math.fast_util,fabric+neoforge,true,已有,保持/测量,Direction/Paper与AxisCycle/AABB/DeerFolia；测配置检查成本,lithium-analysis/micro-existing.md
+mixin.math.sine_lut,fabric+neoforge,true,缺压缩表,P3,缓存收益未定；保留26.3 double→long转换与所有数值边界,lithium-analysis/micro-existing.md
+mixin.minimal_nonvanilla,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/entities-collisions.md
+mixin.minimal_nonvanilla.ai,fabric+neoforge,true,局部语义差异候选,P3,青蛙先过滤可食用类型会改变视线缓存求值时刻,lithium-analysis/ai.md
+mixin.minimal_nonvanilla.ai.sensor,fabric+neoforge,true,局部语义差异候选,P3,青蛙先过滤可食用类型会改变视线缓存求值时刻,lithium-analysis/ai.md
+mixin.minimal_nonvanilla.ai.sensor.frog_attackables,fabric+neoforge,true,局部语义差异候选,P3,青蛙先过滤可食用类型会改变视线缓存求值时刻,lithium-analysis/ai.md
+mixin.minimal_nonvanilla.collisions,fabric+neoforge,true,部分/语义差异,P3默认不建议,空位查询已有Moonrise；Lithium bitset方法有1e-7边界落点差异,lithium-analysis/entities-collisions.md
+mixin.minimal_nonvanilla.collisions.empty_space,fabric+neoforge,true,部分/语义差异,P3默认不建议,空位查询已有Moonrise；Lithium bitset方法有1e-7边界落点差异,lithium-analysis/entities-collisions.md
+mixin.minimal_nonvanilla.spawning,fabric+neoforge,true,部分/语义差异,P3,Folia区域紧凑列表已有；空间重排须测且改变浮点累计顺序,lithium-analysis/world-chunks.md
+mixin.minimal_nonvanilla.world,fabric+neoforge,true,组合/分组,见子项,非完全等价机制须明确差异,lithium-analysis/world-chunks.md
+mixin.minimal_nonvanilla.world.block_entity_ticking,fabric+neoforge,true,缺口/行为差异,P3暂缓,支持状态缓存涉及无效BE清理和状态时机,lithium-analysis/inventory-ticking.md
+mixin.minimal_nonvanilla.world.block_entity_ticking.support_cache,fabric+neoforge,true,缺口/行为差异,P3暂缓,支持状态缓存涉及无效BE清理和状态时机,lithium-analysis/inventory-ticking.md
+mixin.minimal_nonvanilla.world.expiring_chunk_tickets,fabric+neoforge,true,已有对应机制,保持,Moonrise/Folia只访问可过期ticket及owned sections,lithium-analysis/world-chunks.md
+mixin.profiler,fabric+neoforge,true,已有主要思想,不搬两线程缓存,26.3 ACTIVE_COUNT快速返回，Folia多线程需要当前语义,lithium-analysis/micro-existing.md
+mixin.shapes,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/entities-collisions.md
+mixin.shapes.blockstate_cache,fabric+neoforge,true,已有,保持,Moonrise full-block直接缓存,lithium-analysis/entities-collisions.md
+mixin.shapes.lazy_shape_context,fabric+neoforge,true,热路已有/通用部分缺,P3,碰撞LazyEntityCollisionContext已有，剩余通用构造待热点,lithium-analysis/entities-collisions.md
+mixin.shapes.optimized_matching,fabric+neoforge,true,已有,保持,单AABB及CollisionUtil快速相交,lithium-analysis/entities-collisions.md
+mixin.shapes.precompute_shape_arrays,fabric+neoforge,true,已有,保持,VoxelShape预计算坐标/shape data,lithium-analysis/entities-collisions.md
+mixin.shapes.shape_merging,fabric+neoforge,true,已有,保持,Moonrise join/OR缓存与合并实现,lithium-analysis/entities-collisions.md
+mixin.shapes.specialized_shapes,fabric+neoforge,true,已有思想,保持,singleAABB表示等已覆盖，不复制子类体系,lithium-analysis/entities-collisions.md
+mixin.startup,neoforge,true,平台/客户端不适用,跳过,NeoForge客户端初始化兼容，不是服务端提速,lithium-analysis/micro-existing.md
+mixin.util,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/inventory-ticking.md
+mixin.util.accessors,fabric+neoforge,true,平台辅助,按需,源码fork可直接提供受约束接口，不搬Mixin accessor机制,lithium-analysis/inventory-ticking.md
+mixin.util.block_entity_retrieval,fabric+neoforge,true,已有可组合能力,依赖项,复用已加载chunk和CHECK，避免创建BE/额外加载/越区,lithium-analysis/inventory-ticking.md
+mixin.util.block_tracking,fabric+neoforge,true,基础缺口/部分原语已有,P2依赖,按需section计数/revision/订阅，保守未知类型，卸载/标签失效,lithium-analysis/inventory-ticking.md
+mixin.util.chunk_access,fabric+neoforge,true,路径已替代,复用现有,Moonrise即时查询/区块视图，保留Folia归属,lithium-analysis/world-chunks.md
+mixin.util.chunk_status_tracking,fabric+neoforge,true,基础设施,P2依赖,接现有Moonrise生命周期，不另维护平行全世界状态,lithium-analysis/inventory-ticking.md
+mixin.util.data_storage,fabric+neoforge,true,架构适配,P1/P2依赖,改为对象/section/RegionizedData所有权，处理split/merge,lithium-analysis/inventory-ticking.md
+mixin.util.entity_collection_replacement,fabric+neoforge,true,路径已替代,按消费者扩展,扩展Moonrise索引，避免恢复原版EntitySection整套结构,lithium-analysis/entities-collisions.md
+mixin.util.entity_movement_tracking,fabric+neoforge,true,缺订阅机制/底层已有,P2依赖,同section小位移、AABB/加入移除/物品变化均必须通知,lithium-analysis/inventory-ticking.md
+mixin.util.entity_section_position,fabric+neoforge,true,已有可组合能力,依赖项,复用Moonrise切片与实体位置，非独立提速项,lithium-analysis/inventory-ticking.md
+mixin.util.in_world_tracking,fabric+neoforge,true,基础设施,P2依赖,订阅随加入/移除/传送/卸载解绑重建,lithium-analysis/inventory-ticking.md
+mixin.util.in_world_tracking.entity,fabric+neoforge,true,基础设施,P2依赖,订阅随加入/移除/传送/卸载解绑重建,lithium-analysis/inventory-ticking.md
+mixin.util.initialization,fabric+neoforge,true,基础设施,按需,registry/tag冻结与重载时安全重建/发布，不搬Mixin挂钩,lithium-analysis/inventory-ticking.md
+mixin.util.inventory_change_listening,fabric+neoforge,true,缺口,P1基础/P2消费,列表替换、失效、容量与全部写入来源；影子验证,lithium-analysis/inventory-ticking.md
+mixin.util.inventory_comparator_tracking,fabric+neoforge,true,缺口,P2依赖,失败搬运/休眠仍保留现有比较器可观察更新,lithium-analysis/inventory-ticking.md
+mixin.util.item_component_and_count_tracking,fabric+neoforge,true,缺口,P1基础/P2消费,按需订阅数量/类型/组件与组件容器替换，Bukkit镜像写入,lithium-analysis/inventory-ticking.md
+mixin.util.section_data_storage,fabric+neoforge,true,基础设施,按需,附着当前section、限定生命周期，不形成另一个世界级共享Map,lithium-analysis/inventory-ticking.md
+mixin.util.world_border_listener,fabric+neoforge,true,依赖设施,P3,若缓存边界则用generation/snapshot，不跨线程直接调用BE,lithium-analysis/inventory-ticking.md
+mixin.world,fabric+neoforge,true,组合/分组,见具体机制,父分组或组合入口；不作为独立优化计数,lithium-analysis/world-chunks.md
+mixin.world.block_entity_ticking,fabric+neoforge,true,部分/休眠缺口,P1/P2分阶段,Folia区域tick已存在；保留稳定ticker身份的休眠另建设,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.chunk_tickable,fabric+neoforge,true,部分,P2/P3,已有holder readiness，重复判断缓存须考虑midTickTasks状态变化,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping,fabric+neoforge,true,缺口,P1框架/P2扩展,保留pos/BE/移除状态与区域时间，全部唤醒来源可追踪,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.brewing_stand,fabric+neoforge,true,缺口,P1保守态/P2广泛,配方/燃料/事件重试和live API setter必须唤醒,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.campfire,fabric+neoforge,true,缺口,P1,空lit/进度归零unlit，覆盖插件物品/进度修改,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.campfire.lit,fabric+neoforge,true,缺口,P1,空lit/进度归零unlit，覆盖插件物品/进度修改,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.campfire.unlit,fabric+neoforge,true,缺口,P1,空lit/进度归零unlit，覆盖插件物品/进度修改,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.chest_animation,fabric+neoforge,true,客户端,跳过,普通/末影箱服务端getTicker已null,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.crafter,fabric+neoforge,true,缺口,P1,倒计时结束睡眠，setter/NBT/重绑唤醒,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.furnace,fabric+neoforge,true,缺口,P1保守态/P2广泛,无燃烧且无冷却进度等保守空态；不要缓存燃料事件取消,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.hopper,fabric+neoforge,true,缺口,P1锁定子集,冷却结束锁定漏斗先做；完整漏斗休眠P2，不搬MAX_VALUE时钟sentinel,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.sculk_catalyst,fabric+neoforge,true,缺口,P2,无cursor休眠，保留game event listener与新增cursor唤醒,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.sculk_sensor_shrieker,fabric+neoforge,true,缺口,P2,current vibration与候选队列都必须空；回调/排期唤醒,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.sleeping.shulker_box,fabric+neoforge,true,缺口,P1,完全关闭且动画结束；打开唤醒并保留挤实体与更新,lithium-analysis/inventory-ticking.md
+mixin.world.block_entity_ticking.world_border,fabric+neoforge,true,缺口,P3,边界generation/snapshot，动态缩放不能长期缓存,lithium-analysis/inventory-ticking.md
+mixin.world.chunk_access,fabric+neoforge,true,路径已替代,保持,Moonrise loaded chunk快路已替代vanilla四项cache/future路径,lithium-analysis/world-chunks.md
+mixin.world.chunk_ticking,fabric+neoforge,true,已有主体,保持,随机tick与天气具体子项已有,lithium-analysis/world-chunks.md
+mixin.world.chunk_ticking.precipitation,fabric+neoforge,true,已有,保持,晴天无水时天气提前退出已移植,lithium-analysis/world-chunks.md
+mixin.world.chunk_ticking.random_block_ticking,fabric+neoforge,true,已有,保持,Moonrise tickingBlocks稀疏抽样，保留4096概率与区域线程随机源,lithium-analysis/world-chunks.md
+mixin.world.chunk_ticking.spread_ice,fabric+neoforge,true,已有,保持,Biome复用已取blockstate fluidstate,lithium-analysis/world-chunks.md
+mixin.world.combined_heightmap_update,fabric+neoforge,true,缺口,P1,四种heightmap共用向下扫描，保留raw数组/持久化一致,lithium-analysis/world-chunks.md
+mixin.world.explosions,fabric+neoforge,true,已有主体,不整体替换,Moonrise多级缓存/预计算射线/曝光，局部差异不等于大模块缺失,lithium-analysis/entities-collisions.md
+mixin.world.explosions.block_raycast,fabric+neoforge,true,已有主体,不整体替换,Moonrise多级缓存/预计算射线/曝光，局部差异不等于大模块缺失,lithium-analysis/entities-collisions.md
+mixin.world.explosions.block_raycast.skip_air,fabric+neoforge,true,部分/语义差异,默认不扩展,已有非必要空气跳过，不重写爆炸执行时序/计数与事件,lithium-analysis/entities-collisions.md
+mixin.world.explosions.block_raycast.skip_air.no_air_counting,fabric+neoforge,true,部分/语义差异,默认不扩展,已有非必要空气跳过，不重写爆炸执行时序/计数与事件,lithium-analysis/entities-collisions.md
+mixin.world.explosions.entity_raycast,fabric+neoforge,true,已有主体,不整体替换,Moonrise多级缓存/预计算射线/曝光，局部差异不等于大模块缺失,lithium-analysis/entities-collisions.md
+mixin.world.game_events,fabric+neoforge,true,缺口,P1局部/P2索引,先只查已有listener registry，再按收益决定region稀疏索引,lithium-analysis/world-chunks.md
+mixin.world.game_events.dispatch,fabric+neoforge,true,缺口,P1局部/P2索引,先只查已有listener registry，再按收益决定region稀疏索引,lithium-analysis/world-chunks.md
+mixin.world.inline_block_access,fabric+neoforge,true,已有,保持,Paper短访问路径已有，保留capture/加载语义,lithium-analysis/world-chunks.md
+mixin.world.inline_height,fabric+neoforge,true,已有,保持,高度范围/section索引已缓存直接访问,lithium-analysis/world-chunks.md
+mixin.world.raycast,fabric+neoforge,true,部分,P2,单次chunk/section缓存和Fluid.NONE快路，插件副作用/捕获状态回退,lithium-analysis/entities-collisions.md
+mixin.world.temperature_cache,fabric+neoforge,true,已有,保持,Paper已直接计算温度，遗留未使用字段不是缺口,lithium-analysis/world-chunks.md
+mixin.world.tick_scheduler,fabric+neoforge,true,缺口,P2,先紧凑去重再分桶实验，保留priority/subTickOrder/offset/dirty/pack,lithium-analysis/world-chunks.md

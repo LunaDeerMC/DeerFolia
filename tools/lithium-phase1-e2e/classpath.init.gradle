@@ -1,0 +1,12 @@
+gradle.projectsEvaluated {
+    def server = gradle.rootProject.findProject(':DeerFolia-server')
+    if (server != null) {
+        server.tasks.register('e2eClasspath') {
+            doLast {
+                def output = new File(gradle.rootProject.projectDir, 'build/lithium-phase1/classpath.txt')
+                output.parentFile.mkdirs()
+                output.text = server.sourceSets.main.runtimeClasspath.asPath
+            }
+        }
+    }
+}

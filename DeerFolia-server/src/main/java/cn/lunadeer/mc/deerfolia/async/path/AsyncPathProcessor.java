@@ -37,17 +37,25 @@ public class AsyncPathProcessor {
      * @param path            a path to wait on
      * @param afterProcessing a consumer to be called
      */
-    private static void schedule(@NotNull Entity entity, @Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
-        entity.getBukkitEntity().taskScheduler.scheduleOrExecute(nmsEntity -> afterProcessing.accept(path));
+    private static void schedule(@NotNull Entity entity, net.minecraft.world.level.Level requestedLevel,
+                                 @Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
+        entity.getBukkitEntity().taskScheduler.scheduleOrExecute(nmsEntity -> {
+            // EntityScheduler can follow a replacement entity across dimensions. The old
+            // request still captures its original world's POI manager, Brain and targets.
+            if (nmsEntity == entity && nmsEntity.level() == requestedLevel && !nmsEntity.isRemoved()) {
+                afterProcessing.accept(path);
+            }
+        });
     }
 
     public static void awaitProcessing(@NotNull Entity entity, @Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
+        final net.minecraft.world.level.Level requestedLevel = entity.level();
         if (path != null && !path.isProcessed() && path instanceof AsyncPath asyncPath) {
             asyncPath.postProcessing(() ->
-                    schedule(entity, path, afterProcessing)
+                    schedule(entity, requestedLevel, path, afterProcessing)
             );
         } else {
-            schedule(entity, path, afterProcessing);
+            schedule(entity, requestedLevel, path, afterProcessing);
         }
     }
 }

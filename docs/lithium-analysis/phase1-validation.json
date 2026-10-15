@@ -1,0 +1,119 @@
+{
+  "date_utc": "2026-10-15",
+  "baseline_commit": "a81b44bb7c6198d6d80f9c8ea5db38ff24fa15a9",
+  "baseline_jar_sha256": "08498a38b5fa88e4b7b9208c48ce6aa56db34b5cd31a1888382e7ce3298edf93",
+  "final_jar_sha256": "ccf70dc76a16aba4d4774d568174b370b24605ea663838885e5fe41f3c7422a5",
+  "build": {
+    "rebuildAllServerPatches": "passed",
+    "applyAllPatches": "passed",
+    "test": "passed",
+    "createPaperclipJar": "passed",
+    "patch_paths_unchanged": true,
+    "patch_path_count": 24,
+    "generated_minecraft_tree": "2e0d54db2173222b7d6b2a45c41a221d189acbb7",
+    "generated_paper_tree": "48bf8f767ba5e90f51214b4a72523a58e1263d02"
+  },
+  "junit": {
+    "modules": {
+      "DeerFolia-api": {
+        "tests": 481,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2
+      },
+      "DeerFolia-server": {
+        "tests": 10116,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 89
+      },
+      "folia-checkstyle": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "total": {
+      "tests": 10600,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 91
+    },
+    "passed": 10509,
+    "focused": [
+      {
+        "name": "cn.lunadeer.mc.deerfolia.lithium.InsideBlockEffectsOptimizationTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "cn.lunadeer.mc.deerfolia.lithium.AsyncPathSafetyTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "cn.lunadeer.mc.deerfolia.lithium.BlockEntitySleepingTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "cn.lunadeer.mc.deerfolia.lithium.BlockSearchOptimizationTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "cn.lunadeer.mc.deerfolia.lithium.BrainOptimizationTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "cn.lunadeer.mc.deerfolia.lithium.CombinedHeightmapTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "focused_total": 45
+  },
+  "legacy_regression": {
+    "artifact_sha256": "cff2e43d38a1bc4baf078c56980d67d4d55ae9d2c4295aec950d7f0ccb2c9c6f",
+    "runs": {
+      "main": {
+        "status": "passed",
+        "checks": 14,
+        "plugin_checks": 54,
+        "server_exit_code": 0,
+        "errors_in_log": []
+      },
+      "restart": {
+        "status": "passed",
+        "checks": 5,
+        "plugin_checks": 11,
+        "server_exit_code": 0,
+        "errors_in_log": []
+      },
+      "disabled": {
+        "status": "passed",
+        "checks": 4,
+        "plugin_checks": 28,
+        "server_exit_code": 0,
+        "errors_in_log": []
+      }
+    },
+    "harness_adjustment": "Old unconditional AsyncPath assertion replaced with evidenced synchronous fallback: moving_piston in palette, all chunks owned, snapshot(false) succeeds and snapshot(true) rejects. Node/movement checks retained. New phase1 E2E independently covers real AsyncPath positive cases.",
+    "note": "Earlier implementation artifact, before the final early sleeping-wrapper return and deferred search-cache refinements. Final artifact functional validation is recorded in phase1-benchmark-summary.json."
+  },
+  "scope": "Checks executed in this workspace. Subsystem benchmarks and supported gameplay cases do not prove correctness for arbitrary plugins or all region migration/redstone scenarios."
+}

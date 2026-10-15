@@ -147,6 +147,131 @@ index f50e202442fb9085197aca60947abbd1f389cb85..e9015170ff66b9d39aea28e02d57d9c5
          return Stream.concat(this.passengers.stream().flatMap(Entity::getPassengersAndSelf), Stream.of(this));
      }
  
+diff --git a/net/minecraft/world/entity/InsideBlockEffectApplier.java b/net/minecraft/world/entity/InsideBlockEffectApplier.java
+index c2f124383be06ae777c1ee7f0820c959c8359f87..44e994c219c5a6d8e2525c29bcadd7ee2c1aeb6a 100644
+--- a/net/minecraft/world/entity/InsideBlockEffectApplier.java
++++ b/net/minecraft/world/entity/InsideBlockEffectApplier.java
+@@ -32,14 +32,20 @@ public interface InsideBlockEffectApplier {
+     class StepBasedCollector implements InsideBlockEffectApplier {
+         private static final InsideBlockEffectType[] APPLY_ORDER = InsideBlockEffectType.values();
+         private static final int NO_STEP = -1;
+-        private final Map<InsideBlockEffectType, Consumer<Entity>> effectsInStep = new java.util.EnumMap<>(InsideBlockEffectType.class); // Paper - track position inside effect was triggered on
+-        private final Map<InsideBlockEffectType, List<Consumer<Entity>>> beforeEffectsInStep = Util.makeEnumMap(
++        // DeerFolia start - skip empty block effect steps and allocate collections only when used
++        private final boolean deerfoliaOptimizeBlockEffects = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.entity
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.blockEffects;
++        private boolean deerfoliaHasPendingEffects;
++        private Map<InsideBlockEffectType, Consumer<Entity>> effectsInStep = this.deerfoliaOptimizeBlockEffects ? null : new java.util.EnumMap<>(InsideBlockEffectType.class); // Paper - track position inside effect was triggered on
++        private Map<InsideBlockEffectType, List<Consumer<Entity>>> beforeEffectsInStep = this.deerfoliaOptimizeBlockEffects ? null : Util.makeEnumMap(
+             InsideBlockEffectType.class, type -> new ArrayList<>()
+         );
+-        private final Map<InsideBlockEffectType, List<Consumer<Entity>>> afterEffectsInStep = Util.makeEnumMap(
++        private Map<InsideBlockEffectType, List<Consumer<Entity>>> afterEffectsInStep = this.deerfoliaOptimizeBlockEffects ? null : Util.makeEnumMap(
+             InsideBlockEffectType.class, type -> new ArrayList<>()
+         );
+-        private final List<Consumer<Entity>> finalEffects = new ArrayList<>();
++        private List<Consumer<Entity>> finalEffects = this.deerfoliaOptimizeBlockEffects ? null : new ArrayList<>();
++        // DeerFolia end - skip empty block effect steps and allocate collections only when used
+         private int lastStep = -1;
+ 
+         public void advanceStep(final int step, net.minecraft.core.BlockPos pos) { // Paper - track position inside effect was triggered on
+@@ -53,46 +59,79 @@ public interface InsideBlockEffectApplier {
+         public void applyAndClear(final Entity entity) {
+             this.flushStep();
+ 
+-            for (Consumer<Entity> effect : this.finalEffects) {
+-                if (!entity.isAlive()) {
+-                    break;
+-                }
++            if (this.finalEffects != null) { // DeerFolia - the empty collector has no allocated effects list
++                for (Consumer<Entity> effect : this.finalEffects) {
++                    if (!entity.isAlive()) {
++                        break;
++                    }
+ 
+-                effect.accept(entity);
+-            }
++                    effect.accept(entity);
++                }
+ 
+-            this.finalEffects.clear();
++                this.finalEffects.clear();
++            } // DeerFolia - the empty collector has no allocated effects list
+             this.lastStep = -1;
+         }
+ 
+         private void flushStep() {
++            // DeerFolia start - skip empty block effect steps and allocate collections only when used
++            if (this.deerfoliaOptimizeBlockEffects && !this.deerfoliaHasPendingEffects) {
++                return;
++            }
++            if (this.finalEffects == null) {
++                this.finalEffects = new ArrayList<>();
++            }
++            // DeerFolia end - skip empty block effect steps and allocate collections only when used
+             for (InsideBlockEffectType type : APPLY_ORDER) {
+-                List<Consumer<Entity>> beforeEffects = this.beforeEffectsInStep.get(type);
+-                this.finalEffects.addAll(beforeEffects);
+-                beforeEffects.clear();
+-                if (this.effectsInStep.remove(type) instanceof final Consumer<Entity> recordedEffect) { // Paper - track position inside effect was triggered on - better than null check to avoid diff.
++                List<Consumer<Entity>> beforeEffects = this.beforeEffectsInStep == null ? null : this.beforeEffectsInStep.get(type); // DeerFolia - lazy callbacks
++                if (beforeEffects != null) { // DeerFolia - lazy callbacks
++                    this.finalEffects.addAll(beforeEffects);
++                    beforeEffects.clear();
++                } // DeerFolia - lazy callbacks
++                if (this.effectsInStep != null && this.effectsInStep.remove(type) instanceof final Consumer<Entity> recordedEffect) { // Paper - track position inside effect was triggered on // DeerFolia - lazy effects
+                     this.finalEffects.add(recordedEffect); // Paper - track position inside effect was triggered on
+                 }
+ 
+-                List<Consumer<Entity>> afterEffects = this.afterEffectsInStep.get(type);
+-                this.finalEffects.addAll(afterEffects);
+-                afterEffects.clear();
++                List<Consumer<Entity>> afterEffects = this.afterEffectsInStep == null ? null : this.afterEffectsInStep.get(type); // DeerFolia - lazy callbacks
++                if (afterEffects != null) { // DeerFolia - lazy callbacks
++                    this.finalEffects.addAll(afterEffects);
++                    afterEffects.clear();
++                } // DeerFolia - lazy callbacks
+             }
++            this.deerfoliaHasPendingEffects = false; // DeerFolia - all pending effects were transferred
+         }
+ 
+         @Override
+         public void apply(final InsideBlockEffectType type) {
++            // DeerFolia start - lazy block effects
++            if (this.effectsInStep == null) {
++                this.effectsInStep = new java.util.EnumMap<>(InsideBlockEffectType.class);
++            }
++            // DeerFolia end - lazy block effects
+             this.effectsInStep.put(type, recorded(type)); // Paper - track position inside effect was triggered on
++            this.deerfoliaHasPendingEffects = true; // DeerFolia - mark this step as nonempty
+         }
+ 
+         @Override
+         public void runBefore(final InsideBlockEffectType type, final Consumer<Entity> effect) {
+-            this.beforeEffectsInStep.get(type).add(effect);
++            // DeerFolia start - lazy block effect callbacks
++            if (this.beforeEffectsInStep == null) {
++                this.beforeEffectsInStep = new java.util.EnumMap<>(InsideBlockEffectType.class);
++            }
++            this.beforeEffectsInStep.computeIfAbsent(type, ignored -> new ArrayList<>()).add(effect);
++            this.deerfoliaHasPendingEffects = true;
++            // DeerFolia end - lazy block effect callbacks
+         }
+ 
+         @Override
+         public void runAfter(final InsideBlockEffectType type, final Consumer<Entity> effect) {
+-            this.afterEffectsInStep.get(type).add(effect);
++            // DeerFolia start - lazy block effect callbacks
++            if (this.afterEffectsInStep == null) {
++                this.afterEffectsInStep = new java.util.EnumMap<>(InsideBlockEffectType.class);
++            }
++            this.afterEffectsInStep.computeIfAbsent(type, ignored -> new ArrayList<>()).add(effect);
++            this.deerfoliaHasPendingEffects = true;
++            // DeerFolia end - lazy block effect callbacks
+         }
+ 
+         // Paper start - track position inside effect was triggered on
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
 index a66f01754046bd9e3946552cac794b2f624214f9..ed5cc7129e3e70030db092696d401080abffeccd 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
@@ -188,6 +313,186 @@ index a66f01754046bd9e3946552cac794b2f624214f9..ed5cc7129e3e70030db092696d401080
              if (!this.canGlide()) {
                  if (this.getSharedFlag(Entity.FLAG_FALL_FLYING) && !CraftEventFactory.callToggleGlideEvent(this, false).isCancelled()) // CraftBukkit
                  this.setSharedFlag(Entity.FLAG_FALL_FLYING, false);
+diff --git a/net/minecraft/world/entity/ai/Brain.java b/net/minecraft/world/entity/ai/Brain.java
+index e097bc1268b4050e3948413c52dea69950858458..1e89c0d0bce5d3f375449c8cc83ed2c95d4e6cda 100644
+--- a/net/minecraft/world/entity/ai/Brain.java
++++ b/net/minecraft/world/entity/ai/Brain.java
+@@ -48,6 +48,30 @@ public class Brain<E extends LivingEntity> {
+     private Activity defaultActivity = Activity.IDLE;
+     private long lastScheduleUpdate = -9999L;
+ 
++    // DeerFolia start - Lithium: cache task traversal and memory presence, not behavior results
++    private long deerFoliaMemoryStatusVersion;
++    private cn.lunadeer.mc.deerfolia.lithium.@Nullable BrainTaskIndex<E> deerFoliaTaskIndex;
++    private final ObjectArrayList<BehaviorControl<? super E>> deerFoliaRunningSnapshot = new ObjectArrayList<>();
++    private boolean deerFoliaRunningSnapshotInUse;
++
++    public long deerFoliaMemoryStatusVersion() {
++        return this.deerFoliaMemoryStatusVersion;
++    }
++
++    private static boolean deerFoliaOptimizeTasks() {
++        return cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.ai
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.brainTasks;
++    }
++
++    private cn.lunadeer.mc.deerfolia.lithium.BrainTaskIndex<E> deerFoliaTaskIndex() {
++        if (this.deerFoliaTaskIndex == null) {
++            this.deerFoliaTaskIndex = new cn.lunadeer.mc.deerfolia.lithium.BrainTaskIndex<>(this.availableBehaviorsByPriority);
++        }
++        return this.deerFoliaTaskIndex;
++    }
++    // DeerFolia end - Lithium: cache task traversal and memory presence, not behavior results
++
+     public static <E extends LivingEntity> Brain.Provider<E> provider(final Collection<? extends SensorType<? extends Sensor<? super E>>> sensorTypes) {
+         return new Brain.Provider<>(ImmutableList.of(), sensorTypes, var0 -> List.of());
+     }
+@@ -102,7 +126,11 @@ public class Brain<E extends LivingEntity> {
+     }
+ 
+     private void registerMemory(final MemoryModuleType<?> memoryType) {
+-        this.memories.putIfAbsent(memoryType, MemorySlot.create());
++        // DeerFolia start - Lithium: registration changes REGISTERED and VALUE_ABSENT checks
++        if (this.memories.putIfAbsent(memoryType, MemorySlot.create()) == null) {
++            ++this.deerFoliaMemoryStatusVersion;
++        }
++        // DeerFolia end - Lithium: registration changes REGISTERED and VALUE_ABSENT checks
+     }
+ 
+     public Brain() {
+@@ -152,12 +180,20 @@ public class Brain<E extends LivingEntity> {
+     }
+ 
+     public void clearMemories() {
+-        this.memories.values().forEach(MemorySlot::clear);
++        // DeerFolia start - Lithium: invalidate only when presence changes
++        for (MemorySlot<?> slot : this.memories.values()) {
++            if (slot.hasValue()) {
++                ++this.deerFoliaMemoryStatusVersion;
++            }
++            slot.clear();
++        }
++        // DeerFolia end - Lithium: invalidate only when presence changes
+     }
+ 
+     public <U> void eraseMemory(final MemoryModuleType<U> type) {
+         MemorySlot<U> slot = this.getMemorySlotIfPresent(type);
+         if (slot != null) {
++            if (slot.hasValue()) ++this.deerFoliaMemoryStatusVersion; // DeerFolia - Lithium: presence changed
+             slot.clear();
+         }
+     }
+@@ -190,6 +226,8 @@ public class Brain<E extends LivingEntity> {
+                 value = null;
+             }
+ 
++            if (slot.hasValue() != (value != null)) ++this.deerFoliaMemoryStatusVersion; // DeerFolia - Lithium: presence changed
++
+             if (value == null) {
+                 slot.clear();
+             } else {
+@@ -205,6 +243,8 @@ public class Brain<E extends LivingEntity> {
+                 value = null;
+             }
+ 
++            if (slot.hasValue() != (value != null)) ++this.deerFoliaMemoryStatusVersion; // DeerFolia - Lithium: presence changed
++
+             if (value == null) {
+                 slot.clear();
+             } else {
+@@ -268,6 +308,13 @@ public class Brain<E extends LivingEntity> {
+     public List<BehaviorControl<? super E>> getRunningBehaviors() {
+         List<BehaviorControl<? super E>> runningBehaviours = new ObjectArrayList<>();
+ 
++        // DeerFolia start - Lithium: keep this public result an independent snapshot
++        if (deerFoliaOptimizeTasks()) {
++            this.deerFoliaTaskIndex().collectRunning(runningBehaviours);
++            return runningBehaviours;
++        }
++        // DeerFolia end - Lithium: keep this public result an independent snapshot
++
+         for (Map<Activity, Set<BehaviorControl<? super E>>> behavioursByActivities : this.availableBehaviorsByPriority.values()) {
+             for (Set<BehaviorControl<? super E>> behaviors : behavioursByActivities.values()) {
+                 for (BehaviorControl<? super E> behavior : behaviors) {
+@@ -354,6 +401,7 @@ public class Brain<E extends LivingEntity> {
+         final Set<Pair<MemoryModuleType<?>, MemoryStatus>> conditions,
+         final Set<MemoryModuleType<?>> memoriesToEraseWhenStopped
+     ) {
++        this.deerFoliaTaskIndex = null; // DeerFolia - Lithium: behavior topology changed
+         this.activityRequirements.put(activity, conditions);
+         if (!memoriesToEraseWhenStopped.isEmpty()) {
+             this.activityMemoriesToEraseWhenStopped.put(activity, memoriesToEraseWhenStopped);
+@@ -371,11 +419,13 @@ public class Brain<E extends LivingEntity> {
+                 .computeIfAbsent(activity, key -> Sets.newLinkedHashSet())
+                 .add(behavior);
+         }
++        this.deerFoliaTaskIndex = null; // DeerFolia - Lithium: getRequiredMemories may have reentered this Brain
+     }
+ 
+     @VisibleForTesting
+     public void removeAllBehaviors() {
+         this.availableBehaviorsByPriority.clear();
++        this.deerFoliaTaskIndex = null; // DeerFolia - Lithium: behavior topology changed
+     }
+ 
+     public boolean isActive(final Activity activity) {
+@@ -396,7 +446,15 @@ public class Brain<E extends LivingEntity> {
+     }
+ 
+     private void forgetOutdatedMemories() {
+-        this.memories.values().forEach(MemorySlot::tick);
++        // DeerFolia start - Lithium: expiry happens on a Brain tick, including DAB throttling
++        for (MemorySlot<?> slot : this.memories.values()) {
++            boolean hadValue = slot.hasValue();
++            slot.tick();
++            if (hadValue != slot.hasValue()) {
++                ++this.deerFoliaMemoryStatusVersion;
++            }
++        }
++        // DeerFolia end - Lithium: expiry happens on a Brain tick, including DAB throttling
+     }
+ 
+     public void stopAll(final ServerLevel level, final E body) {
+@@ -418,6 +476,13 @@ public class Brain<E extends LivingEntity> {
+     private void startEachNonRunningBehavior(final ServerLevel level, final E body) {
+         long time = level.getGameTime();
+ 
++        // DeerFolia start - Lithium: cache eligible groups while retaining group-boundary activity checks
++        if (deerFoliaOptimizeTasks()) {
++            this.deerFoliaTaskIndex().startNonRunning(level, body, time, this.activeActivities);
++            return;
++        }
++        // DeerFolia end - Lithium: cache eligible groups while retaining group-boundary activity checks
++
+         for (Map<Activity, Set<BehaviorControl<? super E>>> behavioursByActivities : this.availableBehaviorsByPriority.values()) {
+             for (Entry<Activity, Set<BehaviorControl<? super E>>> behavioursForActivity : behavioursByActivities.entrySet()) {
+                 Activity activity = behavioursForActivity.getKey();
+@@ -435,6 +500,24 @@ public class Brain<E extends LivingEntity> {
+     private void tickEachRunningBehavior(final ServerLevel level, final E body) {
+         long timestamp = level.getGameTime();
+ 
++        // DeerFolia start - Lithium: reuse the usual snapshot, isolate recursive ticks
++        if (deerFoliaOptimizeTasks()) {
++            boolean reuseSnapshot = !this.deerFoliaRunningSnapshotInUse;
++            List<BehaviorControl<? super E>> snapshot = reuseSnapshot ? this.deerFoliaRunningSnapshot : new ObjectArrayList<>();
++            if (reuseSnapshot) this.deerFoliaRunningSnapshotInUse = true;
++            try {
++                this.deerFoliaTaskIndex().collectRunning(snapshot);
++                for (int i = 0; i < snapshot.size(); ++i) {
++                    snapshot.get(i).tickOrStop(level, body, timestamp);
++                }
++            } finally {
++                snapshot.clear();
++                if (reuseSnapshot) this.deerFoliaRunningSnapshotInUse = false;
++            }
++            return;
++        }
++        // DeerFolia end - Lithium: reuse the usual snapshot, isolate recursive ticks
++
+         for (BehaviorControl<? super E> behavior : this.getRunningBehaviors()) {
+             behavior.tickOrStop(level, body, timestamp);
+         }
 diff --git a/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
 index 68bad6752bd313ca3ebde7fd4e3b2c46c5dee3ef..618014d700ca24dd03b677b37940ed8696160869 100644
 --- a/net/minecraft/world/entity/ai/attributes/AttributeMap.java
@@ -227,6 +532,44 @@ index 68bad6752bd313ca3ebde7fd4e3b2c46c5dee3ef..618014d700ca24dd03b677b37940ed86
      }
  
      private void onAttributeModified(final AttributeInstance attributeInstance) {
+diff --git a/net/minecraft/world/entity/ai/behavior/Behavior.java b/net/minecraft/world/entity/ai/behavior/Behavior.java
+index f78464bcbf82fdc7cbf43c2ee586586b2cdfa552..f439b6739be1188f81d5478466a0ef4ce69c4dfe 100644
+--- a/net/minecraft/world/entity/ai/behavior/Behavior.java
++++ b/net/minecraft/world/entity/ai/behavior/Behavior.java
+@@ -16,6 +16,7 @@ public abstract class Behavior<E extends LivingEntity> implements BehaviorContro
+     private final int minDuration;
+     private final int maxDuration;
+     private final String configKey; // Paper - configurable behavior tick rate and timings
++    private final cn.lunadeer.mc.deerfolia.lithium.@org.jspecify.annotations.Nullable BrainMemoryConditionCache deerFoliaMemoryConditionCache; // DeerFolia - Lithium: presence-only cache
+ 
+     public Behavior(final Map<MemoryModuleType<?>, MemoryStatus> entryCondition) {
+         this(entryCondition, DEFAULT_DURATION);
+@@ -29,6 +30,10 @@ public abstract class Behavior<E extends LivingEntity> implements BehaviorContro
+         this.minDuration = minDuration;
+         this.maxDuration = maxDuration;
+         this.entryCondition = entryCondition;
++        // DeerFolia start - Lithium: retain the uncached semantics of mutable custom conditions
++        this.deerFoliaMemoryConditionCache = !entryCondition.isEmpty() && cn.lunadeer.mc.deerfolia.lithium.BrainMemoryConditionCache.canCache(entryCondition)
++            ? new cn.lunadeer.mc.deerfolia.lithium.BrainMemoryConditionCache(entryCondition) : null;
++        // DeerFolia end - Lithium: retain the uncached semantics of mutable custom conditions
+         // Paper start - configurable behavior tick rate and timings
+         String key = this.getClass().getName();
+         int lastSeparator = key.lastIndexOf('.');
+@@ -110,6 +115,14 @@ public abstract class Behavior<E extends LivingEntity> implements BehaviorContro
+     }
+ 
+     protected boolean hasRequiredMemories(final E body) {
++        // DeerFolia start - Lithium: extra start conditions are intentionally evaluated on every attempt
++        if (this.deerFoliaMemoryConditionCache != null
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.ai
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.brainMemory) {
++            return this.deerFoliaMemoryConditionCache.check(body.getBrain());
++        }
++        // DeerFolia end - Lithium: extra start conditions are intentionally evaluated on every attempt
+         for (Entry<MemoryModuleType<?>, MemoryStatus> entry : this.entryCondition.entrySet()) {
+             MemoryModuleType<?> memoryType = entry.getKey();
+             MemoryStatus requiredStatus = entry.getValue();
 diff --git a/net/minecraft/world/entity/ai/behavior/GateBehavior.java b/net/minecraft/world/entity/ai/behavior/GateBehavior.java
 index 3adfb334068d3722329f91011c41d5e59b1956c9..9d58ffe52a6bc1d5e4646b63cadc050945bdc286 100644
 --- a/net/minecraft/world/entity/ai/behavior/GateBehavior.java
@@ -255,6 +598,73 @@ index 3adfb334068d3722329f91011c41d5e59b1956c9..9d58ffe52a6bc1d5e4646b63cadc0509
      }
  
      @Override
+diff --git a/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java b/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java
+index 7f93335c30da56c913e1fbae4b8b82f3c7e051e9..68c399529851a95be0fd20636007663053b532fb 100644
+--- a/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java
++++ b/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java
+@@ -25,6 +25,37 @@ public class RemoveBlockGoal extends MoveToBlockGoal {
+     private final Mob removerMob;
+     private int ticksSinceReachedGoal;
+     private static final int WAIT_AFTER_BLOCK_FOUND = 20;
++    // DeerFolia start - prune read-only block searches using loaded section palettes
++    private cn.lunadeer.mc.deerfolia.lithium.@Nullable BlockSearchSectionCache lithiumSearchSections;
++    private int lithiumDirectChecksRemaining = -1;
++
++    /**
++     * Subclasses may opt in only when their target checks do not mutate the world
++     * or reenter the search. Unknown overrides retain the uncached search.
++     */
++    protected boolean lithiumCanPruneSearch() {
++        return this.getClass() == RemoveBlockGoal.class;
++    }
++
++    @Override
++    protected boolean findNearestBlock() {
++        final var config = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize;
++        if (!config.enabled || !config.ai || !config.blockSearch || !this.lithiumCanPruneSearch()) {
++            return super.findNearestBlock();
++        }
++        final var previousSearch = this.lithiumSearchSections;
++        final int previousDirectChecks = this.lithiumDirectChecksRemaining;
++        this.lithiumSearchSections = null;
++        this.lithiumDirectChecksRemaining = 8;
++        try {
++            // Keep the original candidate order, home checks and movingTarget update.
++            return super.findNearestBlock();
++        } finally {
++            this.lithiumSearchSections = previousSearch;
++            this.lithiumDirectChecksRemaining = previousDirectChecks;
++        }
++    }
++    // DeerFolia end - prune read-only block searches using loaded section palettes
+ 
+     public RemoveBlockGoal(final Block blockToRemove, final PathfinderMob mob, final double speedModifier, final int verticalSearchRange) {
+         super(mob, speedModifier, 24, verticalSearchRange);
+@@ -145,6 +176,24 @@ public class RemoveBlockGoal extends MoveToBlockGoal {
+ 
+     @Override
+     protected boolean isValidTarget(final LevelReader level, final BlockPos pos) {
++        // DeerFolia start - prune read-only block searches using loaded section palettes
++        if (this.lithiumSearchSections != null) {
++            if (!this.lithiumSearchSections.mayContain(pos)) {
++                return false;
++            }
++        } else if (this.lithiumDirectChecksRemaining > 0) {
++            --this.lithiumDirectChecksRemaining;
++        } else if (this.lithiumDirectChecksRemaining == 0) {
++            // Nearby targets should not pay for allocating and probing a palette cache.
++            final Level mobLevel = this.mob.level();
++            this.lithiumSearchSections = new cn.lunadeer.mc.deerfolia.lithium.BlockSearchSectionCache(
++                level, this.blockToRemove, candidate -> ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(mobLevel, candidate)
++            );
++            if (!this.lithiumSearchSections.mayContain(pos)) {
++                return false;
++            }
++        }
++        // DeerFolia end - prune read-only block searches using loaded section palettes
+         ChunkAccess chunk = level.getChunkIfLoadedImmediately(pos.getX() >> 4, pos.getZ() >> 4); // Paper - Prevent AI rules from loading chunks
+         return chunk != null
+             && chunk.getBlockState(pos).is(this.blockToRemove)
 diff --git a/net/minecraft/world/entity/ai/sensing/TemptingSensor.java b/net/minecraft/world/entity/ai/sensing/TemptingSensor.java
 index f5a1d35d41167d794409b4a585a7dc0f16ff8d96..b6d1615fdc7e187c12c0c1567d1318b05e576b23 100644
 --- a/net/minecraft/world/entity/ai/sensing/TemptingSensor.java
@@ -314,6 +724,24 @@ index f5a1d35d41167d794409b4a585a7dc0f16ff8d96..b6d1615fdc7e187c12c0c1567d1318b0
      }
  
      private boolean playerHoldingTemptation(final PathfinderMob mob, final Player player) {
+diff --git a/net/minecraft/world/entity/monster/zombie/Zombie.java b/net/minecraft/world/entity/monster/zombie/Zombie.java
+index 071c1fba954486634599eab7843f7ae751ee5be6..674b52fca338ad659294bea437874e1465088c27 100644
+--- a/net/minecraft/world/entity/monster/zombie/Zombie.java
++++ b/net/minecraft/world/entity/monster/zombie/Zombie.java
+@@ -583,6 +583,13 @@ public class Zombie extends Monster {
+             super(Blocks.TURTLE_EGG, mob, speedModifier, verticalSearchRange);
+         }
+ 
++        // DeerFolia start - this native goal uses RemoveBlockGoal's read-only target check
++        @Override
++        protected boolean lithiumCanPruneSearch() {
++            return true;
++        }
++        // DeerFolia end - this native goal uses RemoveBlockGoal's read-only target check
++
+         @Override
+         public void playDestroyProgressSound(final LevelAccessor level, final BlockPos pos) {
+             level.playSound(null, pos, SoundEvents.ZOMBIE_DESTROY_EGG, SoundSource.HOSTILE, 0.5F, 0.9F + Zombie.this.random.nextFloat() * 0.2F);
 diff --git a/net/minecraft/world/entity/raid/Raid.java b/net/minecraft/world/entity/raid/Raid.java
 index 32e20979b9343efa6b5903c7b6baf351205654a0..f8b60342eae3d20520000de25bc9f0865785c9c5 100644
 --- a/net/minecraft/world/entity/raid/Raid.java
@@ -477,6 +905,231 @@ index 92a174eb11521a68a1d2d65f6786ea4eea7438e5..424c106c6c7bd646a597f024880f5b4e
  
              // Paper start - optimize redstone - replace call to updatePowerStrength
              if (level.paperConfig().misc.redstoneImplementation == io.papermc.paper.configuration.WorldConfiguration.Misc.RedstoneImplementation.ALTERNATE_CURRENT) {
+diff --git a/net/minecraft/world/level/block/entity/BlockEntity.java b/net/minecraft/world/level/block/entity/BlockEntity.java
+index cc6258e1edc9f0a746e9298feac273d8b8f958e9..30ac76fc8884a3162025b08167e45ba24c1359b2 100644
+--- a/net/minecraft/world/level/block/entity/BlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BlockEntity.java
+@@ -53,6 +53,43 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     private BlockState blockState;
+     private DataComponentMap components = DataComponentMap.EMPTY;
+ 
++    // DeerFolia start - sleep idle block entities without replacing their region ticker identity
++    private boolean deerfoliaSleeping;
++
++    public final boolean deerfoliaIsSleeping() {
++        return this.deerfoliaSleeping;
++    }
++
++    public final void deerfoliaWakeUp() {
++        this.deerfoliaSleeping = false;
++    }
++
++    protected final void deerfoliaSleep() {
++        final cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.LithiumOptimize config = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize;
++        if (config.enabled && config.world && config.blockEntitySleeping && this.level != null && !this.level.isClientSide()) {
++            this.deerfoliaSleeping = true;
++        }
++    }
++
++    // Called inside the existing ticker's validity checks, before per-entity profiling. Its
++    // position, lifecycle and mid-tick task cadence remain unchanged across region split/merge.
++    public final boolean deerfoliaSkipSleepingTick() {
++        if (!this.deerfoliaSleeping) {
++            return false;
++        }
++        final cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.LithiumOptimize config = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize;
++        if (!config.enabled || !config.world || !config.blockEntitySleeping) {
++            this.deerfoliaWakeUp();
++            return false;
++        }
++        this.deerfoliaTickSleeping();
++        return true;
++    }
++
++    protected void deerfoliaTickSleeping() {
++    }
++    // DeerFolia end - sleep idle block entities without replacing their region ticker identity
++
+     // Folia start - region ticking
+     public void updateTicks(final long fromTickOffset, final long fromRedstoneTimeOffset) {
+ 
+@@ -99,6 +136,7 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     }
+ 
+     public void setLevel(final Level level) {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         this.level = level;
+     }
+ 
+@@ -107,6 +145,7 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     }
+ 
+     protected void loadAdditional(final ValueInput input) {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         // Paper start - read persistent data container
+         this.persistentDataContainer.clear(); // Paper - clear instead of init
+ 
+@@ -215,6 +254,7 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     }
+ 
+     public void setChanged() {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         if (this.level != null) {
+             if (IGNORE_TILE_UPDATES.get().booleanValue()) return; // Paper - Perf: Optimize Hoppers // Folia - region threading
+             setChanged(this.level, this.worldPosition, this.blockState);
+@@ -249,10 +289,12 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     }
+ 
+     public void setRemoved() {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         this.remove = true;
+     }
+ 
+     public void clearRemoved() {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         this.remove = false;
+     }
+ 
+@@ -292,6 +334,7 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+ 
+     @Deprecated
+     public void setBlockState(final BlockState blockState) {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         this.validateBlockState(blockState);
+         this.blockState = blockState;
+     }
+@@ -309,6 +352,7 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     }
+ 
+     public final Set<DataComponentType<?>> applyComponentsSet(final DataComponentMap prototype, final DataComponentPatch patch) {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         // CraftBukkit end
+         final Set<DataComponentType<?>> implicitComponents = new HashSet<>();
+         implicitComponents.add(DataComponents.BLOCK_ENTITY_DATA);
+@@ -354,6 +398,7 @@ public abstract class BlockEntity implements DebugValueSource, TypedInstance<Blo
+     }
+ 
+     public void setComponents(final DataComponentMap components) {
++        this.deerfoliaWakeUp(); // DeerFolia - mutations and lifecycle changes resume ticking
+         this.components = components;
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/CampfireBlockEntity.java b/net/minecraft/world/level/block/entity/CampfireBlockEntity.java
+index 3bd910ae83694a6d19f53dcc4b74598ec0b62b17..95aa44f0e5d0f2260e04c854fd0b625a8a87f4a3 100644
+--- a/net/minecraft/world/level/block/entity/CampfireBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/CampfireBlockEntity.java
+@@ -111,6 +111,19 @@ public class CampfireBlockEntity extends BlockEntity implements Clearable {
+ 
+         if (changed) {
+             setChanged(level, pos, state);
++        } else {
++            // DeerFolia start - only canonical empty slots cannot be revived through Bukkit item mirrors
++            boolean emptySlots = true;
++            for (int slot = 0; slot < entity.items.size(); ++slot) {
++                if (entity.items.get(slot) != ItemStack.EMPTY) {
++                    emptySlots = false;
++                    break;
++                }
++            }
++            if (emptySlots) {
++                entity.deerfoliaSleep();
++            }
++            // DeerFolia end - only canonical empty slots cannot be revived through Bukkit item mirrors
+         }
+     }
+ 
+@@ -126,6 +139,8 @@ public class CampfireBlockEntity extends BlockEntity implements Clearable {
+ 
+         if (changed) {
+             setChanged(level, pos, state);
++        } else {
++            entity.deerfoliaSleep(); // DeerFolia - no cooling progress when unlit
+         }
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/CrafterBlockEntity.java b/net/minecraft/world/level/block/entity/CrafterBlockEntity.java
+index 6ad1e1113f78a4e3fe03a08e9f6c18241aa6f124..e08be25006b059d04bad2ae13b3c73524b540668 100644
+--- a/net/minecraft/world/level/block/entity/CrafterBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/CrafterBlockEntity.java
+@@ -279,9 +279,15 @@ public class CrafterBlockEntity extends RandomizableContainerBlockEntity impleme
+                 level.setBlockAndUpdate(blockPos, blockState.setValue(CrafterBlock.CRAFTING, false));
+             }
+         }
++        // DeerFolia start - only the animation countdown needs this ticker
++        if (entity.craftingTicksRemaining <= 0) {
++            entity.deerfoliaSleep();
++        }
++        // DeerFolia end - only the animation countdown needs this ticker
+     }
+ 
+     public void setCraftingTicksRemaining(final int maxCraftingTicks) {
++        this.deerfoliaWakeUp(); // DeerFolia - includes live Bukkit setters
+         this.craftingTicksRemaining = maxCraftingTicks;
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index f06130a86af84bdaa23b483f94469a131abfc482..919dc884184c8bcbc9dab1465a100ef7bb362ad8 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -149,8 +149,26 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 entity.setCooldown(entity.level.spigotConfig.hopperCheck);
+             }
+             // Spigot end
++            // DeerFolia start - sleep only after the previous cooldown has elapsed
++            if (!state.getValue(HopperBlock.ENABLED)) {
++                entity.deerfoliaSleep();
++            }
++            // DeerFolia end - sleep only after the previous cooldown has elapsed
++        }
++    }
++
++    // DeerFolia start - preserve locked-hopper cooldown and insertion ordering while sleeping
++    @Override
++    protected void deerfoliaTickSleeping() {
++        // A locked hopper cannot search inventories or fire transfer events. Keep only the
++        // observable clock work, including custom hopper-check cycles and region time offsets.
++        --this.cooldownTime;
++        this.tickedGameTime = this.level.getRedstoneGameTime();
++        if (this.cooldownTime <= 0) {
++            this.cooldownTime = this.level.spigotConfig.hopperCheck > 1 ? this.level.spigotConfig.hopperCheck : 0;
+         }
+     }
++    // DeerFolia end - preserve locked-hopper cooldown and insertion ordering while sleeping
+ 
+     // Paper start - Perf: Optimize Hoppers
+     private static final int HOPPER_EMPTY = 0;
+@@ -761,6 +779,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     }
+ 
+     public void setCooldown(final int time) {
++        this.deerfoliaWakeUp(); // DeerFolia - receiving items and live Bukkit changes resume ticking
+         this.cooldownTime = time;
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java b/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
+index c0ec84f3366297b72a12b1f534fd29226165034f..4014a7c6cc6bc5087b1fce43781d6104086f623c 100644
+--- a/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
+@@ -97,6 +97,11 @@ public class ShulkerBoxBlockEntity extends RandomizableContainerBlockEntity impl
+ 
+     public static void tick(final Level level, final BlockPos pos, final BlockState state, final ShulkerBoxBlockEntity entity) {
+         entity.updateAnimation(level, pos, state);
++        // DeerFolia start - preserve the last interpolation tick before sleeping
++        if (entity.animationStatus == AnimationStatus.CLOSED && entity.progressOld == 0.0F) {
++            entity.deerfoliaSleep();
++        }
++        // DeerFolia end - preserve the last interpolation tick before sleeping
+     }
+ 
+     private void updateAnimation(final Level level, final BlockPos pos, final BlockState blockState) {
+@@ -175,6 +180,7 @@ public class ShulkerBoxBlockEntity extends RandomizableContainerBlockEntity impl
+     @Override
+     public boolean triggerEvent(final int b0, final int b1) {
+         if (b0 == EVENT_SET_OPEN_COUNT) {
++            this.deerfoliaWakeUp(); // DeerFolia - opening and closing resume animation
+             this.openCount = b1;
+             if (b1 == 0) {
+                 this.animationStatus = ShulkerBoxBlockEntity.AnimationStatus.CLOSING;
 diff --git a/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/net/minecraft/world/level/block/piston/PistonBaseBlock.java
 index a71916d41a6e02106fd73725dfb180170bed00d6..37eeee6ecc3661a7d9eb55830d294ff6b05a8019 100644
 --- a/net/minecraft/world/level/block/piston/PistonBaseBlock.java
@@ -532,6 +1185,190 @@ index 8133c467e421443cc9a57a3b23c4fff4b9f56662..4b46ac0c42925f526cee01aac9bdd2b9
 +        // DeerFolia end - Lithium: avoid Direction.values() allocation
  
          return true;
+     }
+diff --git a/net/minecraft/world/level/chunk/ChunkAccess.java b/net/minecraft/world/level/chunk/ChunkAccess.java
+index 39ea7198f3bbe4525e686504887e0074de80854d..365419d14c0590d7a27de85ef1b102ad61c375f5 100644
+--- a/net/minecraft/world/level/chunk/ChunkAccess.java
++++ b/net/minecraft/world/level/chunk/ChunkAccess.java
+@@ -200,6 +200,12 @@ public abstract class ChunkAccess implements LightChunk, StructureAccess, BiomeR
+         return GameEventListenerRegistry.NOOP;
+     }
+ 
++    // DeerFolia start - event delivery must not create empty listener registries
++    public GameEventListenerRegistry getExistingListenerRegistry(final int section) {
++        return GameEventListenerRegistry.NOOP;
++    }
++    // DeerFolia end - event delivery must not create empty listener registries
++
+     public abstract BlockState getBlockState(final int x, final int y, final int z); // Paper
+ 
+     public @Nullable BlockState setBlockState(final BlockPos pos, final BlockState state) {
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index 58b2c1435969e10866b803f69aaf8517256503fe..181668b583a8586b66c96b923e81e663a18aa621 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -276,6 +276,13 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+             : super.getListenerRegistry(section);
+     }
+ 
++    // DeerFolia start - event delivery must not create empty listener registries
++    @Override
++    public GameEventListenerRegistry getExistingListenerRegistry(final int section) {
++        return this.gameEventListenerRegistrySections.getOrDefault(section, GameEventListenerRegistry.NOOP);
++    }
++    // DeerFolia end - event delivery must not create empty listener registries
++
+     // Paper start - Perf: Reduce instructions and provide final method
+     @Override
+     public BlockState getBlockState(final int x, final int y, final int z) {
+@@ -389,10 +396,24 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         }
+ 
+         Block newBlock = state.getBlock();
++        // DeerFolia start - share the downward scan between the four live heightmaps
++        if (cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.heightmaps) {
++            Heightmap.updateCombined(
++                this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING),
++                this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES),
++                this.heightmaps.get(Heightmap.Types.OCEAN_FLOOR),
++                this.heightmaps.get(Heightmap.Types.WORLD_SURFACE),
++                localX, y, localZ, state
++            );
++        } else {
++        // DeerFolia end - share the downward scan between the four live heightmaps
+         this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING).update(localX, y, localZ, state);
+         this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES).update(localX, y, localZ, state);
+         this.heightmaps.get(Heightmap.Types.OCEAN_FLOOR).update(localX, y, localZ, state);
+         this.heightmaps.get(Heightmap.Types.WORLD_SURFACE).update(localX, y, localZ, state);
++        } // DeerFolia - share the downward scan between the four live heightmaps
+         boolean isEmpty = section.hasOnlyAir();
+         if (wasEmpty != isEmpty) {
+             this.level.getChunkSource().getLightEngine().updateSectionStatus(pos, isEmpty);
+@@ -945,6 +966,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         private BoundTickingBlockEntity(final T blockEntity, final BlockEntityTicker<T> ticker) {
+             this.blockEntity = blockEntity;
+             this.ticker = ticker;
++            blockEntity.deerfoliaWakeUp(); // DeerFolia - rebinding a ticker must reconsider sleeping state
+         }
+ 
+         // Folia start - region threading
+@@ -962,6 +984,15 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+                     final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle foliaProfiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler(); // Folia - profiler
+                     final int timerId = this.blockEntity.getType().tileEntityTimingId; // Folia - profiler
+                     try {
++                        // DeerFolia start - sleeping entities retain validation but skip per-entity profiling
++                        if (this.blockEntity.deerfoliaIsSleeping()) {
++                            BlockState sleepingState = LevelChunk.this.getBlockState(pos);
++                            if (this.blockEntity.getType().isValid(sleepingState) && this.blockEntity.deerfoliaSkipSleepingTick()) {
++                                this.loggedInvalidBlockState = false;
++                                return;
++                            }
++                        }
++                        // DeerFolia end - sleeping entities retain validation but skip per-entity profiling
+                         ProfilerFiller profiler = Profiler.get();
+                         profiler.push(this::getType);
+                         foliaProfiler.startTimer(timerId); try { // Folia - profiler
+diff --git a/net/minecraft/world/level/gameevent/GameEventDispatcher.java b/net/minecraft/world/level/gameevent/GameEventDispatcher.java
+index ae5983e5a173145c44b62f9fb6bb9a0c31924b00..242f3ce3b0ed797087b605f099c8c1414d7c10b7 100644
+--- a/net/minecraft/world/level/gameevent/GameEventDispatcher.java
++++ b/net/minecraft/world/level/gameevent/GameEventDispatcher.java
+@@ -46,6 +46,11 @@ public class GameEventDispatcher {
+             }
+         };
+         boolean applicable = false;
++        // DeerFolia start - event delivery must not create empty listener registries
++        final boolean queryExistingRegistries = cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.enabled
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.world
++            && cn.lunadeer.mc.deerfolia.DeerFoliaConfiguration.lithiumOptimize.gameEvents;
++        // DeerFolia end - event delivery must not create empty listener registries
+ 
+         for (int chunkX = sectionMinX; chunkX <= sectionMaxX; chunkX++) {
+             for (int chunkZ = sectionMinZ; chunkZ <= sectionMaxZ; chunkZ++) {
+@@ -57,7 +62,11 @@ public class GameEventDispatcher {
+                 ChunkAccess chunk = this.level.getChunkIfLoadedImmediately(chunkX, chunkZ); // Paper - Use getChunkIfLoadedImmediately
+                 if (chunk != null) {
+                     for (int section = sectionMinY; section <= sectionMaxY; section++) {
+-                        applicable |= chunk.getListenerRegistry(section).visitInRangeListeners(gameEvent, position, context, visitListeners);
++                        // DeerFolia start - event delivery must not create empty listener registries
++                        GameEventListenerRegistry registry = queryExistingRegistries
++                            ? chunk.getExistingListenerRegistry(section) : chunk.getListenerRegistry(section);
++                        applicable |= registry.visitInRangeListeners(gameEvent, position, context, visitListeners);
++                        // DeerFolia end - event delivery must not create empty listener registries
+                     }
+                 }
+             }
+diff --git a/net/minecraft/world/level/levelgen/Heightmap.java b/net/minecraft/world/level/levelgen/Heightmap.java
+index 22990ffcb40304279530462a72c489e8e1207e08..b98bc497343a8698429885a6ce60a827eadfb90a 100644
+--- a/net/minecraft/world/level/levelgen/Heightmap.java
++++ b/net/minecraft/world/level/levelgen/Heightmap.java
+@@ -119,6 +119,66 @@ public class Heightmap {
+         return false;
+     }
+ 
++    // DeerFolia start - share the downward scan between the four live heightmaps
++    public static void updateCombined(
++        final Heightmap first, final Heightmap second, final Heightmap third, final Heightmap fourth,
++        final int localX, final int localY, final int localZ, final BlockState state
++    ) {
++        int pending = (first.deerfoliaNeedsScan(localX, localY, localZ, state) ? 1 : 0)
++            | (second.deerfoliaNeedsScan(localX, localY, localZ, state) ? 2 : 0)
++            | (third.deerfoliaNeedsScan(localX, localY, localZ, state) ? 4 : 0)
++            | (fourth.deerfoliaNeedsScan(localX, localY, localZ, state) ? 8 : 0);
++        if (pending == 0) {
++            return;
++        }
++
++        // All four maps belong to the same chunk. The common path above allocates nothing.
++        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
++        final int minY = first.chunk.getMinY();
++        for (int y = localY - 1; y >= minY; y--) {
++            BlockState below = first.chunk.getBlockState(pos.set(localX, y, localZ));
++            if ((pending & 1) != 0 && first.isOpaque.test(below)) {
++                first.setHeight(localX, localZ, y + 1);
++                pending &= ~1;
++            }
++            if ((pending & 2) != 0 && second.isOpaque.test(below)) {
++                second.setHeight(localX, localZ, y + 1);
++                pending &= ~2;
++            }
++            if ((pending & 4) != 0 && third.isOpaque.test(below)) {
++                third.setHeight(localX, localZ, y + 1);
++                pending &= ~4;
++            }
++            if ((pending & 8) != 0 && fourth.isOpaque.test(below)) {
++                fourth.setHeight(localX, localZ, y + 1);
++                pending &= ~8;
++            }
++            if (pending == 0) {
++                return;
++            }
++        }
++
++        if ((pending & 1) != 0) first.setHeight(localX, localZ, minY);
++        if ((pending & 2) != 0) second.setHeight(localX, localZ, minY);
++        if ((pending & 4) != 0) third.setHeight(localX, localZ, minY);
++        if ((pending & 8) != 0) fourth.setHeight(localX, localZ, minY);
++    }
++
++    private boolean deerfoliaNeedsScan(final int localX, final int localY, final int localZ, final BlockState state) {
++        int firstAvailable = this.getFirstAvailable(localX, localZ);
++        if (localY <= firstAvailable - 2) {
++            return false;
++        }
++        if (this.isOpaque.test(state)) {
++            if (localY >= firstAvailable) {
++                this.setHeight(localX, localZ, localY + 1);
++            }
++            return false;
++        }
++        return firstAvailable - 1 == localY;
++    }
++    // DeerFolia end - share the downward scan between the four live heightmaps
++
+     public int getFirstAvailable(final int x, final int z) {
+         return this.getFirstAvailable(getIndex(x, z));
      }
 diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
 index f0529d233b791e226cec469b2efebcffd02c6d58..d36821c35b631213b50c966de04ad9fb49367a87 100644

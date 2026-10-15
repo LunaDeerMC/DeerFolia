@@ -87,6 +87,20 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         public boolean math = true;
         @Comments("Optimize world generation and weather-related ticking")
         public boolean world = true;
+        @Comments("Skip empty block-effect collections and allocate callback lists only when needed (requires entity)")
+        public boolean blockEffects = true;
+        @Comments("Share downward block scans between heightmaps (requires world)")
+        public boolean heightmaps = true;
+        @Comments("Avoid creating empty game-event listener registries during dispatch (requires world)")
+        public boolean gameEvents = true;
+        @Comments("Reuse ordered Brain task indexes and running-task snapshots (requires ai)")
+        public boolean brainTasks = true;
+        @Comments("Cache immutable behavior memory prerequisites until memory presence changes (requires ai)")
+        public boolean brainMemory = true;
+        @Comments("Skip sections without the required block during supported mob block searches (requires ai)")
+        public boolean blockSearch = true;
+        @Comments("Pause supported idle block entities until a relevant state change wakes them (requires world)")
+        public boolean blockEntitySleeping = true;
     }
 
     @Comments("POI (Point of Interest) Optimizations - Reduce CPU usage with many villagers")
@@ -99,7 +113,7 @@ public class DeerFoliaConfiguration extends ConfigurationFile {
         public int golemSpawnCheckInterval = 200;
         @Comments("Minimum interval (ticks) between secondary POI sensor scans")
         public int secondaryPoiSensorInterval = 80;
-        @Comments("Cache duration (ticks) for village distance calculations")
+        @Comments("Legacy setting retained for configuration compatibility; village distances use the live POI index")
         public int villageDistanceCacheDuration = 100;
         @Comments("Skip golem spawn check if villager is more than this distance from nearest player")
         public int golemSpawnPlayerDistanceLimit = 128;

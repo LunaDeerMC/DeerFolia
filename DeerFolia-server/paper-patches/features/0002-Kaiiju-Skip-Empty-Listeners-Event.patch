@@ -33,3 +33,47 @@ index 8b7a15af1eb2cc0318e26d7199c8e684de63cd72..56916a4a634866beedf40aa97350d624
  
          for (RegisteredListener registration : listeners) {
              if (!registration.getPlugin().isEnabled()) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java b/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
+index 07b8337fea2ecdf4ad5211a54db224c434976ced..dfb9092de0184f407fbe191f6993c80759e7eccd 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
+@@ -32,6 +32,7 @@ public class CraftCampfire extends CraftBlockEntityState<CampfireBlockEntity> im
+ 
+     @Override
+     public void setItem(int index, ItemStack item) {
++        this.getSnapshot().deerfoliaWakeUp(); // DeerFolia - setters may operate on the live block entity
+         this.getSnapshot().getItems().set(index, CraftItemStack.asNMSCopy(item));
+     }
+ 
+@@ -42,6 +43,7 @@ public class CraftCampfire extends CraftBlockEntityState<CampfireBlockEntity> im
+ 
+     @Override
+     public void setCookTime(int index, int cookTime) {
++        this.getSnapshot().deerfoliaWakeUp(); // DeerFolia - setters may operate on the live block entity
+         this.getSnapshot().cookingProgress[index] = cookTime;
+     }
+ 
+@@ -52,6 +54,7 @@ public class CraftCampfire extends CraftBlockEntityState<CampfireBlockEntity> im
+ 
+     @Override
+     public void setCookTimeTotal(int index, int cookTimeTotal) {
++        this.getSnapshot().deerfoliaWakeUp(); // DeerFolia - setters may operate on the live block entity
+         this.getSnapshot().cookingTime[index] = cookTimeTotal;
+     }
+ 
+@@ -81,6 +84,7 @@ public class CraftCampfire extends CraftBlockEntityState<CampfireBlockEntity> im
+     public boolean stopCooking(int index) {
+         requireRange(index, "index", 0, 3);
+         boolean previous = this.isCookingDisabled(index);
++        this.getSnapshot().deerfoliaWakeUp(); // DeerFolia - setters may operate on the live block entity
+         this.getSnapshot().stopCooking[index] = true;
+         return previous;
+     }
+@@ -89,6 +93,7 @@ public class CraftCampfire extends CraftBlockEntityState<CampfireBlockEntity> im
+     public boolean startCooking(int index) {
+         requireRange(index, "index", 0, 3);
+         boolean previous = this.isCookingDisabled(index);
++        this.getSnapshot().deerfoliaWakeUp(); // DeerFolia - setters may operate on the live block entity
+         this.getSnapshot().stopCooking[index] = false;
+         return previous;
+     }

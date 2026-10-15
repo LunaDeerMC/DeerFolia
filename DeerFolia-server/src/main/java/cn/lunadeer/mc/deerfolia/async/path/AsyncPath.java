@@ -70,7 +70,7 @@ public class AsyncPath extends Path {
         super(emptyNodeList, null, false);
 
         this.nodes = emptyNodeList;
-        this.positions = positions;
+        this.positions = positions.stream().map(BlockPos::immutable).collect(java.util.stream.Collectors.toUnmodifiableSet());
         this.pathSupplier = pathSupplier;
 
         AsyncPathProcessor.queue(this);
@@ -117,18 +117,40 @@ public class AsyncPath extends Path {
 
         processState = PathProcessState.PROCESSING;
 
-        final Path bestPath = this.pathSupplier.get();
+        try {
+            final Path bestPath = this.pathSupplier.get();
+            if (bestPath != null) {
+                this.nodes.addAll(bestPath.nodes);
+                this.target = bestPath.getTarget();
+                this.distToTarget = bestPath.getDistToTarget();
+                this.canReach = bestPath.canReach();
+            } else {
+                this.setUnreachable();
+            }
+        } catch (RuntimeException exception) {
+            // Complete the request even on failure so navigations and callbacks cannot remain stuck.
+            com.mojang.logging.LogUtils.getLogger().error("Asynchronous path search failed", exception);
+            this.setUnreachable();
+        } finally {
+            processState = PathProcessState.COMPLETED;
+        }
 
-        this.nodes.addAll(bestPath.nodes); // we mutate this list to reuse the logic in Path
-        this.target = bestPath.getTarget();
-        this.distToTarget = bestPath.getDistToTarget();
-        this.canReach = bestPath.canReach();
+        List<Runnable> callbacks = List.copyOf(this.postProcessing);
+        this.postProcessing.clear();
+        for (Runnable runnable : callbacks) {
+            try {
+                runnable.run();
+            } catch (RuntimeException exception) {
+                com.mojang.logging.LogUtils.getLogger().error("Asynchronous path completion callback failed", exception);
+            }
+        }
+    }
 
-        processState = PathProcessState.COMPLETED;
-
-        for (Runnable runnable : this.postProcessing) {
-            runnable.run();
-        } // Run tasks after processing
+    private void setUnreachable() {
+        this.nodes.clear();
+        this.target = this.positions.iterator().next();
+        this.distToTarget = Float.MAX_VALUE;
+        this.canReach = false;
     }
 
     /**
